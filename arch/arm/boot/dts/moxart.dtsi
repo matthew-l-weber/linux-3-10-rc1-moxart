@@ -1,0 +1,71 @@
+/* moxart.dtsi - Device Tree Include file for MOXA ART family SoC
+ *
+ * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
+ *
+ * Licensed under GPLv2 or later. */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&intc>;
+
+	cpus {
+		cpu@0 {
+			compatible = "faraday,fa526";
+		};
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc: oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x90000000 0x10000000>;
+		ranges;
+
+		intc: interrupt-controller@98800000 {
+			compatible = "moxa,moxart-interrupt-controller";
+			reg = <0x98800000 0x38>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-mask = <0x00080000>;		/* single register vector, interrupts 0-31, 1s signify edge */
+		};
+
+		timer: timer@98400000 {
+			compatible = "moxa,moxart-timer";
+			reg = <0x98400000 0x10>;
+			interrupts = <19 1>;
+		};
+
+		gpio: gpio@98700000 {
+			compatible = "moxa,moxart-gpio";
+			reg =	<0x98700000 0x1000>,
+					<0x98100000 0x1000>;		/* PMU */
+		};
+
+		rtc: rtc {
+			compatible = "moxa,moxart-rtc";
+		};
+
+		dma: dma@90500000 {
+			compatible = "moxa,moxart-dma";
+			reg = <0x90500000 0x1000>;
+			interrupts = <24 0>;
+		};
+
+		watchdog: watchdog@98500000 {
+			compatible = "moxa,moxart-watchdog";
+			reg = <0x98500000 0x1000>;
+		};
+	};
+};

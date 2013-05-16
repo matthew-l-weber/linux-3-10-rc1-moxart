@@ -704,6 +704,15 @@ config GPIO_MSIC
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
 
+config GPIO_MOXART
+    bool "MOXART GPIO support"
+    depends on ARCH_MOXART
+    help
+      Say yes here to support the MOXART GPIO device found in
+	  MOXA ART SoC devices.
+	  This is needed to read RTC and also supports user space
+	  control of ready-LED or system speaker beep.
+
 comment "USB GPIO expanders:"
 
 config GPIO_VIPERBOARD

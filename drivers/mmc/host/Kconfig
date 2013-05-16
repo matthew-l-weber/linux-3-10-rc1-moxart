@@ -260,6 +260,15 @@ config MMC_SDHCI_BCM2835
 
 	  If unsure, say N.
 
+config MMC_SDHCI_MOXART
+    tristate "MOXART SD Host Controller Interface support"
+    depends on ARCH_MOXART && MMC
+    help
+      This selects the MOXART SD Host Controller Interface.
+      MOXA provides one multi-functional card reader which can
+      be found on some embedded hardware such as UC-7112-LX.
+      If you have a controller with this interface, say Y here.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP

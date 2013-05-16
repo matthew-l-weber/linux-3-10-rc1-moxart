@@ -1,0 +1,91 @@
+/* moxart-uc7112lx.dts - Device Tree file for MOXA UC-7112-LX
+ *
+ * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
+ *
+ * Licensed under GPLv2 or later. */
+
+/dts-v1/;
+/include/ "moxart.dtsi"
+
+/ {
+	model = "MOXA UC-7112-LX";
+	compatible = "moxa,moxart-uc-7112-lx";
+
+	memory {
+		reg = <0x00000000 0x02000000>;
+	};
+
+	flash@80000000,0 {
+		/* JS28F128 J3D75 A9087684 - Numonyx™ Embedded Flash Memory (J3 v. D) */
+		compatible = "numonyx,js28f128", "cfi-flash";
+		reg = <0x80000000 0x01000000>;
+		bank-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "bootloader";
+			reg = <0x00000000 0x00040000>;
+		};
+		partition@40000 {
+			label = "linux kernel";
+			reg = <0x00040000 0x001C0000>;
+		};
+		partition@200000 {
+			label = "root filesystem";
+			reg = <0x00200000 0x00800000>;
+		};
+		partition@a00000 {
+			label = "user filesystem";
+			reg = <0x00a00000 0x00600000>;
+		};
+	};
+
+	mmc@98e00000 {
+		compatible = "moxa,moxart-mmc";
+		reg =	<0x98e00000 0x00001000>,
+				<0x98100000 0x1000>;		/* PMU */
+		interrupts = <5 0>;
+	};
+
+	mxser@98200040 {
+		compatible = "moxa,moxart-mxser";
+		reg =	<0x98200040 0x00000080>,	/* UART "3" base */
+				<0x982000e4 0x00000080>,	/* UART mode base */
+				<0x982000c0 0x00000020>;	/* UART interrupt vector */
+		interrupts = <31 1>;
+	};
+
+	mac0: mac@90900000 {
+		compatible = "moxa,moxart-mac0";
+		reg =   <0x90900000 0x1000>,
+				<0x80000000 0x01000000>;	/* MAC address stored on flash */
+		interrupts = <25 0>;
+		flash-offset = <0x50>;
+	};
+
+	mac1: mac@92000000 {
+		compatible = "moxa,moxart-mac1";
+		reg =   <0x92000000 0x1000>,
+				<0x80000000 0x01000000>;	/* MAC address stored on flash */
+		interrupts = <27 0>;
+		flash-offset = <0x56>;
+	};
+
+	uart0: uart@98200000 {
+		compatible = "ns16550a";
+		reg = <0x98200000 0x20>;
+		interrupts = <31 0>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <14745600>;
+		status = "okay";
+	};
+
+	chosen {
+		/* uncomment to use on board flash root
+		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rootfstype=jffs2 rw";
+		*/
+		/*bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";*/
+		bootargs = "initcall_debug debug loglevel=9 console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";
+	};
+};

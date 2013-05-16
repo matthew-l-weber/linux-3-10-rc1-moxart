@@ -40,6 +40,9 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -50,12 +53,16 @@
 #define	MXSER_VERSION	"2.0.5"		/* 1.14 */
 #define	MXSERMAJOR	 174
 
+#ifdef CONFIG_ARCH_MOXART
+#define MXSER_BOARDS		1	/* Max. boards */
+#else
 #define MXSER_BOARDS		4	/* Max. boards */
+#endif
 #define MXSER_PORTS_PER_BOARD	8	/* Max. ports per board */
 #define MXSER_PORTS		(MXSER_BOARDS * MXSER_PORTS_PER_BOARD)
 #define MXSER_ISR_PASS_LIMIT	100
 
-/*CheckIsMoxaMust return value*/
+/*check_is_moxa_must return value*/
 #define MOXA_OTHER_UART		0x00
 #define MOXA_MUST_MU150_HWID	0x01
 #define MOXA_MUST_MU860_HWID	0x02
@@ -141,6 +148,7 @@ static const struct mxser_cardinfo mxser_cards[] = {
 	{ "CP-114UL series",	4, },
 /*30*/	{ "CP-102UF series",	2, },
 	{ "CP-112UL series",	2, },
+	{ "UC-7112-LX",  2, },
 };
 
 /* driver_data correspond to the lines in the structure above
@@ -225,8 +233,10 @@ struct mxser_port {
 	struct tty_port port;
 	struct mxser_board *board;
 
-	unsigned long ioaddr;
-	unsigned long opmode_ioaddr;
+/*	unsigned long ioaddr;
+	unsigned long opmode_ioaddr;*/
+	void __iomem *ioaddr;
+	void __iomem *opmode_ioaddr;
 	int max_baud;
 
 	int rx_high_water;
@@ -266,7 +276,8 @@ struct mxser_board {
 	unsigned int idx;
 	int irq;
 	const struct mxser_cardinfo *info;
-	unsigned long vector;
+/*	unsigned long vector;*/
+	void __iomem *vector;
 	unsigned long vector_mask;
 
 	int chip_flag;
@@ -288,70 +299,70 @@ static struct tty_driver *mxvar_sdriver;
 static struct mxser_log mxvar_log;
 static int mxser_set_baud_method[MXSER_PORTS + 1];
 
-static void mxser_enable_must_enchance_mode(unsigned long baseio)
+static void mxser_enable_must_enchance_mode(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr |= MOXA_MUST_EFR_EFRB_ENABLE;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
 #ifdef	CONFIG_PCI
-static void mxser_disable_must_enchance_mode(unsigned long baseio)
+static void mxser_disable_must_enchance_mode(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_EFRB_ENABLE;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 #endif
 
-static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
+static void mxser_set_must_xon1_value(void __iomem *baseio, u8 value)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_BANK_MASK;
 	efr |= MOXA_MUST_EFR_BANK0;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(value, baseio + MOXA_MUST_XON1_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(value, baseio + MOXA_MUST_XON1_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_set_must_xoff1_value(unsigned long baseio, u8 value)
+static void mxser_set_must_xoff1_value(void __iomem *baseio, u8 value)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_BANK_MASK;
 	efr |= MOXA_MUST_EFR_BANK0;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(value, baseio + MOXA_MUST_XOFF1_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(value, baseio + MOXA_MUST_XOFF1_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
 static void mxser_set_must_fifo_value(struct mxser_port *info)
@@ -359,146 +370,149 @@ static void mxser_set_must_fifo_value(struct mxser_port *info)
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(info->ioaddr + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, info->ioaddr + UART_LCR);
+	oldlcr = ioread8(info->ioaddr + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, info->ioaddr + UART_LCR);
 
-	efr = inb(info->ioaddr + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(info->ioaddr + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_BANK_MASK;
 	efr |= MOXA_MUST_EFR_BANK1;
 
-	outb(efr, info->ioaddr + MOXA_MUST_EFR_REGISTER);
-	outb((u8)info->rx_high_water, info->ioaddr + MOXA_MUST_RBRTH_REGISTER);
-	outb((u8)info->rx_trigger, info->ioaddr + MOXA_MUST_RBRTI_REGISTER);
-	outb((u8)info->rx_low_water, info->ioaddr + MOXA_MUST_RBRTL_REGISTER);
-	outb(oldlcr, info->ioaddr + UART_LCR);
+	iowrite8(efr, info->ioaddr + MOXA_MUST_EFR_REGISTER);
+	iowrite8((u8)info->rx_high_water, info->ioaddr +
+		MOXA_MUST_RBRTH_REGISTER);
+	iowrite8((u8)info->rx_trigger, info->ioaddr + MOXA_MUST_RBRTI_REGISTER);
+	iowrite8((u8)info->rx_low_water, info->ioaddr +
+		MOXA_MUST_RBRTL_REGISTER);
+	iowrite8(oldlcr, info->ioaddr + UART_LCR);
 }
 
-static void mxser_set_must_enum_value(unsigned long baseio, u8 value)
+static void mxser_set_must_enum_value(void __iomem *baseio, u8 value)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_BANK_MASK;
 	efr |= MOXA_MUST_EFR_BANK2;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(value, baseio + MOXA_MUST_ENUM_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(value, baseio + MOXA_MUST_ENUM_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
 #ifdef CONFIG_PCI
-static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
+static void mxser_get_must_hardware_id(void __iomem *baseio, u8 *p_id)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_BANK_MASK;
 	efr |= MOXA_MUST_EFR_BANK2;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	*pId = inb(baseio + MOXA_MUST_HWID_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	*p_id = ioread8(baseio + MOXA_MUST_HWID_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 #endif
 
-static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
+static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_SF_MASK;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_enable_must_tx_software_flow_control(unsigned long baseio)
+static void mxser_enable_must_tx_software_flow_control(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_SF_TX_MASK;
 	efr |= MOXA_MUST_EFR_SF_TX1;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_disable_must_tx_software_flow_control(unsigned long baseio)
+static void mxser_disable_must_tx_software_flow_control(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_SF_TX_MASK;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_enable_must_rx_software_flow_control(unsigned long baseio)
+static void mxser_enable_must_rx_software_flow_control(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_SF_RX_MASK;
 	efr |= MOXA_MUST_EFR_SF_RX1;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
-static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
+static void mxser_disable_must_rx_software_flow_control(void __iomem *baseio)
 {
 	u8 oldlcr;
 	u8 efr;
 
-	oldlcr = inb(baseio + UART_LCR);
-	outb(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
+	oldlcr = ioread8(baseio + UART_LCR);
+	iowrite8(MOXA_MUST_ENTER_ENCHANCE, baseio + UART_LCR);
 
-	efr = inb(baseio + MOXA_MUST_EFR_REGISTER);
+	efr = ioread8(baseio + MOXA_MUST_EFR_REGISTER);
 	efr &= ~MOXA_MUST_EFR_SF_RX_MASK;
 
-	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
-	outb(oldlcr, baseio + UART_LCR);
+	iowrite8(efr, baseio + MOXA_MUST_EFR_REGISTER);
+	iowrite8(oldlcr, baseio + UART_LCR);
 }
 
 #ifdef CONFIG_PCI
-static int CheckIsMoxaMust(unsigned long io)
+static int check_is_moxa_must(void __iomem *io)
 {
 	u8 oldmcr, hwid;
 	int i;
 
-	outb(0, io + UART_LCR);
+	iowrite8(0, io + UART_LCR);
 	mxser_disable_must_enchance_mode(io);
-	oldmcr = inb(io + UART_MCR);
-	outb(0, io + UART_MCR);
+	oldmcr = ioread8(io + UART_MCR);
+	iowrite8(0, io + UART_MCR);
 	mxser_set_must_xon1_value(io, 0x11);
-	if ((hwid = inb(io + UART_MCR)) != 0) {
-		outb(oldmcr, io + UART_MCR);
+	hwid = ioread8(io + UART_MCR);
+	if (hwid != 0) {
+		iowrite8(oldmcr, io + UART_MCR);
 		return MOXA_OTHER_UART;
 	}
 
@@ -531,12 +545,12 @@ static void process_txrx_fifo(struct mxser_port *info)
 			}
 }
 
-static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
+static unsigned char mxser_get_msr(void __iomem *baseio, int mode, int port)
 {
 	static unsigned char mxser_msr[MXSER_PORTS + 1];
 	unsigned char status = 0;
 
-	status = inb(baseaddr + UART_MSR);
+	status = ioread8(baseio + UART_MSR);
 
 	mxser_msr[port] &= 0x0F;
 	mxser_msr[port] |= status;
@@ -550,7 +564,7 @@ static unsigned char mxser_get_msr(int baseaddr, int mode, int port)
 static int mxser_carrier_raised(struct tty_port *port)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
-	return (inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD)?1:0;
+	return (ioread8(mp->ioaddr + UART_MSR) & UART_MSR_DCD) ? 1 : 0;
 }
 
 static void mxser_dtr_rts(struct tty_port *port, int on)
@@ -560,10 +574,11 @@ static void mxser_dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&mp->slock, flags);
 	if (on)
-		outb(inb(mp->ioaddr + UART_MCR) |
+		iowrite8(ioread8(mp->ioaddr + UART_MCR) |
 			UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
 	else
-		outb(inb(mp->ioaddr + UART_MCR)&~(UART_MCR_DTR | UART_MCR_RTS),
+		iowrite8(ioread8(mp->ioaddr + UART_MCR) &
+			~(UART_MCR_DTR | UART_MCR_RTS),
 			mp->ioaddr + UART_MCR);
 	spin_unlock_irqrestore(&mp->slock, flags);
 }
@@ -598,20 +613,21 @@ static int mxser_set_baud(struct tty_struct *tty, long newspd)
 
 	if (quot) {
 		info->MCR |= UART_MCR_DTR;
-		outb(info->MCR, info->ioaddr + UART_MCR);
+		iowrite8(info->MCR, info->ioaddr + UART_MCR);
 	} else {
 		info->MCR &= ~UART_MCR_DTR;
-		outb(info->MCR, info->ioaddr + UART_MCR);
+		iowrite8(info->MCR, info->ioaddr + UART_MCR);
 		return 0;
 	}
 
-	cval = inb(info->ioaddr + UART_LCR);
+	cval = ioread8(info->ioaddr + UART_LCR);
 
-	outb(cval | UART_LCR_DLAB, info->ioaddr + UART_LCR);	/* set DLAB */
+	/* set DLAB */
+	iowrite8(cval | UART_LCR_DLAB, info->ioaddr + UART_LCR);
 
-	outb(quot & 0xff, info->ioaddr + UART_DLL);	/* LS of divisor */
-	outb(quot >> 8, info->ioaddr + UART_DLM);	/* MS of divisor */
-	outb(cval, info->ioaddr + UART_LCR);	/* reset DLAB */
+	iowrite8(quot & 0xff, info->ioaddr + UART_DLL);	/* LS of divisor */
+	iowrite8(quot >> 8, info->ioaddr + UART_DLM);	/* MS of divisor */
+	iowrite8(cval, info->ioaddr + UART_LCR);	/* reset DLAB */
 
 #ifdef BOTHER
 	if (C_BAUD(tty) == BOTHER) {
@@ -716,18 +732,20 @@ static int mxser_change_speed(struct tty_struct *tty,
 		if ((info->type == PORT_16550A) || (info->board->chip_flag)) {
 			info->MCR |= UART_MCR_AFE;
 		} else {
-			status = inb(info->ioaddr + UART_MSR);
+			status = ioread8(info->ioaddr + UART_MSR);
 			if (tty->hw_stopped) {
 				if (status & UART_MSR_CTS) {
 					tty->hw_stopped = 0;
 					if (info->type != PORT_16550A &&
 							!info->board->chip_flag) {
-						outb(info->IER & ~UART_IER_THRI,
+						iowrite8(info->IER &
+							~UART_IER_THRI,
 							info->ioaddr +
 							UART_IER);
 						info->IER |= UART_IER_THRI;
-						outb(info->IER, info->ioaddr +
-								UART_IER);
+						iowrite8(info->IER,
+							info->ioaddr +
+							UART_IER);
 					}
 					tty_wakeup(tty);
 				}
@@ -737,8 +755,9 @@ static int mxser_change_speed(struct tty_struct *tty,
 					if ((info->type != PORT_16550A) &&
 							(!info->board->chip_flag)) {
 						info->IER &= ~UART_IER_THRI;
-						outb(info->IER, info->ioaddr +
-								UART_IER);
+						iowrite8(info->IER,
+							info->ioaddr +
+							UART_IER);
 					}
 				}
 			}
@@ -746,14 +765,14 @@ static int mxser_change_speed(struct tty_struct *tty,
 	} else {
 		info->port.flags &= ~ASYNC_CTS_FLOW;
 	}
-	outb(info->MCR, info->ioaddr + UART_MCR);
+	iowrite8(info->MCR, info->ioaddr + UART_MCR);
 	if (cflag & CLOCAL) {
 		info->port.flags &= ~ASYNC_CHECK_CD;
 	} else {
 		info->port.flags |= ASYNC_CHECK_CD;
 		info->IER |= UART_IER_MSI;
 	}
-	outb(info->IER, info->ioaddr + UART_IER);
+	iowrite8(info->IER, info->ioaddr + UART_IER);
 
 	/*
 	 * Set up parity check flag
@@ -804,8 +823,8 @@ static int mxser_change_speed(struct tty_struct *tty,
 	}
 
 
-	outb(fcr, info->ioaddr + UART_FCR);	/* set fcr */
-	outb(cval, info->ioaddr + UART_LCR);
+	iowrite8(fcr, info->ioaddr + UART_FCR);	/* set fcr */
+	iowrite8(cval, info->ioaddr + UART_LCR);
 
 	return ret;
 }
@@ -837,10 +856,10 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 
 				if ((port->type != PORT_16550A) &&
 						(!port->board->chip_flag)) {
-					outb(port->IER & ~UART_IER_THRI,
+					iowrite8(port->IER & ~UART_IER_THRI,
 						port->ioaddr + UART_IER);
 					port->IER |= UART_IER_THRI;
-					outb(port->IER, port->ioaddr +
+					iowrite8(port->IER, port->ioaddr +
 							UART_IER);
 				}
 				tty_wakeup(tty);
@@ -851,7 +870,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 				if (port->type != PORT_16550A &&
 						!port->board->chip_flag) {
 					port->IER &= ~UART_IER_THRI;
-					outb(port->IER, port->ioaddr +
+					iowrite8(port->IER, port->ioaddr +
 							UART_IER);
 				}
 			}
@@ -884,11 +903,11 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	 * (they will be reenabled in mxser_change_speed())
 	 */
 	if (info->board->chip_flag)
-		outb((UART_FCR_CLEAR_RCVR |
+		iowrite8((UART_FCR_CLEAR_RCVR |
 			UART_FCR_CLEAR_XMIT |
 			MOXA_MUST_FCR_GDA_MODE_ENABLE), info->ioaddr + UART_FCR);
 	else
-		outb((UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
+		iowrite8((UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
 			info->ioaddr + UART_FCR);
 
 	/*
@@ -896,7 +915,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	 * if it is, then bail out, because there's likely no UART
 	 * here.
 	 */
-	if (inb(info->ioaddr + UART_LSR) == 0xff) {
+	if (ioread8(info->ioaddr + UART_LSR) == 0xff) {
 		spin_unlock_irqrestore(&info->slock, flags);
 		if (capable(CAP_SYS_ADMIN)) {
 			set_bit(TTY_IO_ERROR, &tty->flags);
@@ -908,17 +927,17 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	/*
 	 * Clear the interrupt registers.
 	 */
-	(void) inb(info->ioaddr + UART_LSR);
-	(void) inb(info->ioaddr + UART_RX);
-	(void) inb(info->ioaddr + UART_IIR);
-	(void) inb(info->ioaddr + UART_MSR);
+	(void) ioread8(info->ioaddr + UART_LSR);
+	(void) ioread8(info->ioaddr + UART_RX);
+	(void) ioread8(info->ioaddr + UART_IIR);
+	(void) ioread8(info->ioaddr + UART_MSR);
 
 	/*
 	 * Now, initialize the UART
 	 */
-	outb(UART_LCR_WLEN8, info->ioaddr + UART_LCR);	/* reset DLAB */
+	iowrite8(UART_LCR_WLEN8, info->ioaddr + UART_LCR);	/* reset DLAB */
 	info->MCR = UART_MCR_DTR | UART_MCR_RTS;
-	outb(info->MCR, info->ioaddr + UART_MCR);
+	iowrite8(info->MCR, info->ioaddr + UART_MCR);
 
 	/*
 	 * Finally, enable interrupts
@@ -927,15 +946,15 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 
 	if (info->board->chip_flag)
 		info->IER |= MOXA_MUST_IER_EGDAI;
-	outb(info->IER, info->ioaddr + UART_IER);	/* enable interrupts */
+	iowrite8(info->IER, info->ioaddr + UART_IER);	/* enable interrupts */
 
 	/*
 	 * And clear the interrupt registers again for luck.
 	 */
-	(void) inb(info->ioaddr + UART_LSR);
-	(void) inb(info->ioaddr + UART_RX);
-	(void) inb(info->ioaddr + UART_IIR);
-	(void) inb(info->ioaddr + UART_MSR);
+	(void) ioread8(info->ioaddr + UART_LSR);
+	(void) ioread8(info->ioaddr + UART_RX);
+	(void) ioread8(info->ioaddr + UART_IIR);
+	(void) ioread8(info->ioaddr + UART_MSR);
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
@@ -974,19 +993,19 @@ static void mxser_shutdown_port(struct tty_port *port)
 	}
 
 	info->IER = 0;
-	outb(0x00, info->ioaddr + UART_IER);
+	iowrite8(0x00, info->ioaddr + UART_IER);
 
 	/* clear Rx/Tx FIFO's */
 	if (info->board->chip_flag)
-		outb(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT |
+		iowrite8(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT |
 				MOXA_MUST_FCR_GDA_MODE_ENABLE,
 				info->ioaddr + UART_FCR);
 	else
-		outb(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
+		iowrite8(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT,
 			info->ioaddr + UART_FCR);
 
 	/* read data port to reset things */
-	(void) inb(info->ioaddr + UART_RX);
+	(void) ioread8(info->ioaddr + UART_RX);
 
 
 	if (info->board->chip_flag)
@@ -1027,10 +1046,10 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 	spin_lock_irqsave(&info->slock, flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
-	fcr = inb(info->ioaddr + UART_FCR);
-	outb((fcr | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
+	fcr = ioread8(info->ioaddr + UART_FCR);
+	iowrite8((fcr | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
 		info->ioaddr + UART_FCR);
-	outb(fcr, info->ioaddr + UART_FCR);
+	iowrite8(fcr, info->ioaddr + UART_FCR);
 
 	spin_unlock_irqrestore(&info->slock, flags);
 
@@ -1052,19 +1071,83 @@ static void mxser_close_port(struct tty_port *port)
 	if (info->board->chip_flag)
 		info->IER &= ~MOXA_MUST_RECV_ISR;
 
-	outb(info->IER, info->ioaddr + UART_IER);
+	iowrite8(info->IER, info->ioaddr + UART_IER);
 	/*
 	 * Before we drop DTR, make sure the UART transmitter
 	 * has completely drained; this is especially
 	 * important if there is a transmit FIFO!
 	 */
 	timeout = jiffies + HZ;
-	while (!(inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
+	while (!(ioread8(info->ioaddr + UART_LSR) & UART_LSR_TEMT)) {
 		schedule_timeout_interruptible(5);
 		if (time_after(jiffies, timeout))
 			break;
 	}
 }
+
+int mxser_tty_port_close_start(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	if (tty_hung_up_p(filp)) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		return 0;
+	}
+
+	if (tty->count == 1 && port->count != 1) {
+		pr_warn(
+			"tty_port_close_start: tty->count = 1 port count = %d.\n",
+								port->count);
+		port->count = 1;
+	}
+	if (--port->count < 0) {
+		pr_warn("tty_port_close_start: count = %d\n",
+								port->count);
+		port->count = 0;
+	}
+
+	if (port->count) {
+		spin_unlock_irqrestore(&port->lock, flags);
+		if (port->ops->drop)
+			port->ops->drop(port);
+		return 0;
+	}
+	/*set_bit(ASYNCB_CLOSING, &port->flags);*/
+	tty->closing = 1;
+	spin_unlock_irqrestore(&port->lock, flags);
+	/* Don't block on a stalled port, just pull the chain */
+	if (tty->flow_stopped)
+		tty_driver_flush_buffer(tty);
+	if (test_bit(ASYNCB_INITIALIZED, &port->flags) &&
+			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent_from_close(tty, port->closing_wait);
+	if (port->drain_delay) {
+		unsigned int bps = tty_get_baud_rate(tty);
+		long timeout;
+
+		if (bps > 1200)
+			timeout = max_t(long,
+				(HZ * 10 * port->drain_delay) / bps, HZ / 10);
+		else
+			timeout = 2 * HZ;
+		schedule_timeout_interruptible(timeout);
+	}
+	/* Flush the ldisc buffering */
+	tty_ldisc_flush(tty);
+
+	/* Drop DTR/RTS if HUPCL is set. This causes any attached modem to
+	   hang up the line */
+	if (tty->termios.c_cflag & HUPCL)
+		tty_port_lower_dtr_rts(port);
+
+	/* Don't call port->drop for the last reference. Callers will want
+	   to drop the last active reference in ->shutdown() or the tty
+	   shutdown path */
+	return 1;
+}
+EXPORT_SYMBOL(tty_port_close_start);
 
 /*
  * This routine is called when the serial port gets closed.  First, we
@@ -1079,7 +1162,11 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 
 	if (tty->index == MXSER_PORTS || info == NULL)
 		return;
+#ifdef CONFIG_ARCH_MOXART
+	if (mxser_tty_port_close_start(port, tty, filp) == 0)
+#else
 	if (tty_port_close_start(port, tty, filp) == 0)
+#endif
 		return;
 	mutex_lock(&port->mutex);
 	mxser_close_port(port);
@@ -1129,10 +1216,10 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 				(info->type == PORT_16550A) ||
 				(info->board->chip_flag)) {
 			spin_lock_irqsave(&info->slock, flags);
-			outb(info->IER & ~UART_IER_THRI, info->ioaddr +
+			iowrite8(info->IER & ~UART_IER_THRI, info->ioaddr +
 					UART_IER);
 			info->IER |= UART_IER_THRI;
-			outb(info->IER, info->ioaddr + UART_IER);
+			iowrite8(info->IER, info->ioaddr + UART_IER);
 			spin_unlock_irqrestore(&info->slock, flags);
 		}
 	}
@@ -1160,9 +1247,10 @@ static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
 				(info->type == PORT_16550A) ||
 				info->board->chip_flag) {
 			spin_lock_irqsave(&info->slock, flags);
-			outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
+			iowrite8(info->IER & ~UART_IER_THRI,
+				info->ioaddr + UART_IER);
 			info->IER |= UART_IER_THRI;
-			outb(info->IER, info->ioaddr + UART_IER);
+			iowrite8(info->IER, info->ioaddr + UART_IER);
 			spin_unlock_irqrestore(&info->slock, flags);
 		}
 	}
@@ -1182,9 +1270,9 @@ static void mxser_flush_chars(struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->slock, flags);
 
-	outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
+	iowrite8(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
 	info->IER |= UART_IER_THRI;
-	outb(info->IER, info->ioaddr + UART_IER);
+	iowrite8(info->IER, info->ioaddr + UART_IER);
 
 	spin_unlock_irqrestore(&info->slock, flags);
 }
@@ -1216,7 +1304,7 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	struct serial_struct tmp = {
 		.type = info->type,
 		.line = tty->index,
-		.port = info->ioaddr,
+		.port = (unsigned int)info->ioaddr,
 		.irq = info->board->irq,
 		.flags = info->port.flags,
 		.baud_base = info->baud_base,
@@ -1247,7 +1335,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 		return -EFAULT;
 
 	if (new_serial.irq != info->board->irq ||
-			new_serial.port != info->ioaddr)
+			new_serial.port != (unsigned int)info->ioaddr)
 		return -EINVAL;
 
 	flags = port->flags & ASYNC_SPD_MASK;
@@ -1316,7 +1404,7 @@ static int mxser_get_lsr_info(struct mxser_port *info,
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
-	status = inb(info->ioaddr + UART_LSR);
+	status = ioread8(info->ioaddr + UART_LSR);
 	spin_unlock_irqrestore(&info->slock, flags);
 	result = ((status & UART_LSR_TEMT) ? TIOCSER_TEMT : 0);
 	return put_user(result, value);
@@ -1337,7 +1425,7 @@ static int mxser_tiocmget(struct tty_struct *tty)
 	control = info->MCR;
 
 	spin_lock_irqsave(&info->slock, flags);
-	status = inb(info->ioaddr + UART_MSR);
+	status = ioread8(info->ioaddr + UART_MSR);
 	if (status & UART_MSR_ANY_DELTA)
 		mxser_check_modem_status(tty, info, status);
 	spin_unlock_irqrestore(&info->slock, flags);
@@ -1373,24 +1461,26 @@ static int mxser_tiocmset(struct tty_struct *tty,
 	if (clear & TIOCM_DTR)
 		info->MCR &= ~UART_MCR_DTR;
 
-	outb(info->MCR, info->ioaddr + UART_MCR);
+	iowrite8(info->MCR, info->ioaddr + UART_MCR);
 	spin_unlock_irqrestore(&info->slock, flags);
 	return 0;
 }
+
+#ifndef CONFIG_ARCH_MOXART
 
 static int __init mxser_program_mode(int port)
 {
 	int id, i, j, n;
 
-	outb(0, port);
-	outb(0, port);
-	outb(0, port);
-	(void)inb(port);
-	(void)inb(port);
-	outb(0, port);
-	(void)inb(port);
+	iowrite8(0, port);
+	iowrite8(0, port);
+	iowrite8(0, port);
+	(void)ioread8(port);
+	(void)ioread8(port);
+	iowrite8(0, port);
+	(void)ioread8(port);
 
-	id = inb(port + 1) & 0x1F;
+	id = ioread8(port + 1) & 0x1F;
 	if ((id != C168_ASIC_ID) &&
 			(id != C104_ASIC_ID) &&
 			(id != C102_ASIC_ID) &&
@@ -1399,7 +1489,7 @@ static int __init mxser_program_mode(int port)
 			(id != CI104J_ASIC_ID))
 		return -1;
 	for (i = 0, j = 0; i < 4; i++) {
-		n = inb(port + 2);
+		n = ioread8(port + 2);
 		if (n == 'M') {
 			j = 1;
 		} else if ((j == 1) && (n == 1)) {
@@ -1417,20 +1507,20 @@ static void __init mxser_normal_mode(int port)
 {
 	int i, n;
 
-	outb(0xA5, port + 1);
-	outb(0x80, port + 3);
-	outb(12, port + 0);	/* 9600 bps */
-	outb(0, port + 1);
-	outb(0x03, port + 3);	/* 8 data bits */
-	outb(0x13, port + 4);	/* loop back mode */
+	iowrite8(0xA5, port + 1);
+	iowrite8(0x80, port + 3);
+	iowrite8(12, port + 0);	/* 9600 bps */
+	iowrite8(0, port + 1);
+	iowrite8(0x03, port + 3);	/* 8 data bits */
+	iowrite8(0x13, port + 4);	/* loop back mode */
 	for (i = 0; i < 16; i++) {
-		n = inb(port + 5);
+		n = ioread8(port + 5);
 		if ((n & 0x61) == 0x60)
 			break;
 		if ((n & 1) == 1)
-			(void)inb(port);
+			(void)ioread8(port);
 	}
-	outb(0x00, port + 4);
+	iowrite8(0x00, port + 4);
 }
 
 #define CHIP_SK 	0x01	/* Serial Data Clock  in Eprom */
@@ -1457,29 +1547,36 @@ static int __init mxser_read_register(int port, unsigned short *regs)
 	for (i = 0; i < 14; i++) {
 		k = (i & 0x3F) | 0x180;
 		for (j = 0x100; j > 0; j >>= 1) {
-			outb(CHIP_CS, port);
+			iowrite8(CHIP_CS, port);
 			if (k & j) {
-				outb(CHIP_CS | CHIP_DO, port);
-				outb(CHIP_CS | CHIP_DO | CHIP_SK, port);	/* A? bit of read */
+				iowrite8(CHIP_CS | CHIP_DO, port);
+
+				/* A? bit of read */
+				iowrite8(CHIP_CS | CHIP_DO | CHIP_SK, port);
+
 			} else {
-				outb(CHIP_CS, port);
-				outb(CHIP_CS | CHIP_SK, port);	/* A? bit of read */
+				iowrite8(CHIP_CS, port);
+
+				/* A? bit of read */
+				iowrite8(CHIP_CS | CHIP_SK, port);
 			}
 		}
-		(void)inb(port);
+		(void)ioread8(port);
 		value = 0;
 		for (k = 0, j = 0x8000; k < 16; k++, j >>= 1) {
-			outb(CHIP_CS, port);
-			outb(CHIP_CS | CHIP_SK, port);
-			if (inb(port) & CHIP_DI)
+			iowrite8(CHIP_CS, port);
+			iowrite8(CHIP_CS | CHIP_SK, port);
+			if (ioread8(port) & CHIP_DI)
 				value |= j;
 		}
 		regs[i] = value;
-		outb(0, port);
+		iowrite8(0, port);
 	}
 	mxser_normal_mode(port);
 	return id;
 }
+
+#endif
 
 static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 {
@@ -1492,7 +1589,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	switch (cmd) {
 	case MOXA_GET_MAJOR:
-		printk_ratelimited(KERN_WARNING "mxser: '%s' uses deprecated ioctl "
+		pr_warn_ratelimited("mxser: '%s' uses deprecated ioctl "
 					"%x (GET_MAJOR), fix your userspace\n",
 					current->comm, cmd);
 		return put_user(ttymajor, (int __user *)argp);
@@ -1530,7 +1627,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 					ms.cflag = tty->termios.c_cflag;
 				tty_kref_put(tty);
 				spin_lock_irq(&ip->slock);
-				status = inb(ip->ioaddr + UART_MSR);
+				status = ioread8(ip->ioaddr + UART_MSR);
 				spin_unlock_irq(&ip->slock);
 				if (status & UART_MSR_DCD)
 					ms.dcd = 1;
@@ -1618,7 +1715,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				if (ip->type == PORT_16550A)
 					me->fifo[p] = 1;
 
-				opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
+				opmode = ioread8(ip->opmode_ioaddr) >>
+					((p % 4) * 2);
 				opmode &= OP_MODE_MASK;
 				me->iftype[p] = opmode;
 				mutex_unlock(&port->mutex);
@@ -1688,15 +1786,15 @@ static int mxser_ioctl(struct tty_struct *tty,
 			mask = ModeMask[p];
 			shiftbit = p * 2;
 			spin_lock_irq(&info->slock);
-			val = inb(info->opmode_ioaddr);
+			val = ioread8(info->opmode_ioaddr);
 			val &= mask;
 			val |= (opmode << shiftbit);
-			outb(val, info->opmode_ioaddr);
+			iowrite8(val, info->opmode_ioaddr);
 			spin_unlock_irq(&info->slock);
 		} else {
 			shiftbit = p * 2;
 			spin_lock_irq(&info->slock);
-			opmode = inb(info->opmode_ioaddr) >> shiftbit;
+			opmode = ioread8(info->opmode_ioaddr) >> shiftbit;
 			spin_unlock_irq(&info->slock);
 			opmode &= OP_MODE_MASK;
 			if (put_user(opmode, (int __user *)argp))
@@ -1749,7 +1847,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 
 		len = mxser_chars_in_buffer(tty);
 		spin_lock_irq(&info->slock);
-		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_THRE;
+		lsr = ioread8(info->ioaddr + UART_LSR) & UART_LSR_THRE;
 		spin_unlock_irq(&info->slock);
 		len += (lsr ? 0 : 1);
 
@@ -1762,7 +1860,7 @@ static int mxser_ioctl(struct tty_struct *tty,
 		status = mxser_get_msr(info->ioaddr, 1, tty->index);
 		mxser_check_modem_status(tty, info, status);
 
-		mcr = inb(info->ioaddr + UART_MCR);
+		mcr = ioread8(info->ioaddr + UART_MCR);
 		spin_unlock_irq(&info->slock);
 
 		if (mcr & MOXA_MUST_MCR_XON_FLAG)
@@ -1848,18 +1946,18 @@ static void mxser_stoprx(struct tty_struct *tty)
 	if (I_IXOFF(tty)) {
 		if (info->board->chip_flag) {
 			info->IER &= ~MOXA_MUST_RECV_ISR;
-			outb(info->IER, info->ioaddr + UART_IER);
+			iowrite8(info->IER, info->ioaddr + UART_IER);
 		} else {
 			info->x_char = STOP_CHAR(tty);
-			outb(0, info->ioaddr + UART_IER);
+			iowrite8(0, info->ioaddr + UART_IER);
 			info->IER |= UART_IER_THRI;
-			outb(info->IER, info->ioaddr + UART_IER);
+			iowrite8(info->IER, info->ioaddr + UART_IER);
 		}
 	}
 
 	if (tty->termios.c_cflag & CRTSCTS) {
 		info->MCR &= ~UART_MCR_RTS;
-		outb(info->MCR, info->ioaddr + UART_MCR);
+		iowrite8(info->MCR, info->ioaddr + UART_MCR);
 	}
 }
 
@@ -1884,19 +1982,19 @@ static void mxser_unthrottle(struct tty_struct *tty)
 		else {
 			if (info->board->chip_flag) {
 				info->IER |= MOXA_MUST_RECV_ISR;
-				outb(info->IER, info->ioaddr + UART_IER);
+				iowrite8(info->IER, info->ioaddr + UART_IER);
 			} else {
 				info->x_char = START_CHAR(tty);
-				outb(0, info->ioaddr + UART_IER);
+				iowrite8(0, info->ioaddr + UART_IER);
 				info->IER |= UART_IER_THRI;
-				outb(info->IER, info->ioaddr + UART_IER);
+				iowrite8(info->IER, info->ioaddr + UART_IER);
 			}
 		}
 	}
 
 	if (tty->termios.c_cflag & CRTSCTS) {
 		info->MCR |= UART_MCR_RTS;
-		outb(info->MCR, info->ioaddr + UART_MCR);
+		iowrite8(info->MCR, info->ioaddr + UART_MCR);
 	}
 }
 
@@ -1914,7 +2012,7 @@ static void mxser_stop(struct tty_struct *tty)
 	spin_lock_irqsave(&info->slock, flags);
 	if (info->IER & UART_IER_THRI) {
 		info->IER &= ~UART_IER_THRI;
-		outb(info->IER, info->ioaddr + UART_IER);
+		iowrite8(info->IER, info->ioaddr + UART_IER);
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
 }
@@ -1926,9 +2024,9 @@ static void mxser_start(struct tty_struct *tty)
 
 	spin_lock_irqsave(&info->slock, flags);
 	if (info->xmit_cnt && info->port.xmit_buf) {
-		outb(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
+		iowrite8(info->IER & ~UART_IER_THRI, info->ioaddr + UART_IER);
 		info->IER |= UART_IER_THRI;
-		outb(info->IER, info->ioaddr + UART_IER);
+		iowrite8(info->IER, info->ioaddr + UART_IER);
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
 }
@@ -2008,7 +2106,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 		timeout = 2 * info->timeout;
 
 	spin_lock_irqsave(&info->slock, flags);
-	while (!((lsr = inb(info->ioaddr + UART_LSR)) & UART_LSR_TEMT)) {
+	while (!((lsr = ioread8(info->ioaddr + UART_LSR)) & UART_LSR_TEMT)) {
 		spin_unlock_irqrestore(&info->slock, flags);
 		schedule_timeout_interruptible(char_time);
 		spin_lock_irqsave(&info->slock, flags);
@@ -2042,10 +2140,10 @@ static int mxser_rs_break(struct tty_struct *tty, int break_state)
 
 	spin_lock_irqsave(&info->slock, flags);
 	if (break_state == -1)
-		outb(inb(info->ioaddr + UART_LCR) | UART_LCR_SBC,
+		iowrite8(ioread8(info->ioaddr + UART_LCR) | UART_LCR_SBC,
 			info->ioaddr + UART_LCR);
 	else
-		outb(inb(info->ioaddr + UART_LCR) & ~UART_LCR_SBC,
+		iowrite8(ioread8(info->ioaddr + UART_LCR) & ~UART_LCR_SBC,
 			info->ioaddr + UART_LCR);
 	spin_unlock_irqrestore(&info->slock, flags);
 	return 0;
@@ -2073,7 +2171,7 @@ static void mxser_receive_chars(struct tty_struct *tty,
 		if (*status & MOXA_MUST_LSR_RERR)
 			goto intr_old;
 
-		gdl = inb(port->ioaddr + MOXA_MUST_GDL_REGISTER);
+		gdl = ioread8(port->ioaddr + MOXA_MUST_GDL_REGISTER);
 
 		if (port->board->chip_flag == MOXA_MUST_MU150_HWID)
 			gdl &= MOXA_MUST_GDL_MASK;
@@ -2082,7 +2180,7 @@ static void mxser_receive_chars(struct tty_struct *tty,
 				mxser_stoprx(tty);
 		}
 		while (gdl--) {
-			ch = inb(port->ioaddr + UART_RX);
+			ch = ioread8(port->ioaddr + UART_RX);
 			tty_insert_flip_char(&port->port, ch, 0);
 			cnt++;
 		}
@@ -2094,9 +2192,9 @@ intr_old:
 		if (max-- < 0)
 			break;
 
-		ch = inb(port->ioaddr + UART_RX);
+		ch = ioread8(port->ioaddr + UART_RX);
 		if (port->board->chip_flag && (*status & UART_LSR_OE))
-			outb(0x23, port->ioaddr + UART_FCR);
+			iowrite8(0x23, port->ioaddr + UART_FCR);
 		*status &= port->read_status_mask;
 		if (*status & port->ignore_status_mask) {
 			if (++ignored > 100)
@@ -2135,7 +2233,7 @@ intr_old:
 		if (port->board->chip_flag)
 			break;
 
-		*status = inb(port->ioaddr + UART_LSR);
+		*status = ioread8(port->ioaddr + UART_LSR);
 	} while (*status & UART_LSR_DR);
 
 end_intr:
@@ -2158,7 +2256,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 	int count, cnt;
 
 	if (port->x_char) {
-		outb(port->x_char, port->ioaddr + UART_TX);
+		iowrite8(port->x_char, port->ioaddr + UART_TX);
 		port->x_char = 0;
 		mxvar_log.txcnt[tty->index]++;
 		port->mon_data.txcnt++;
@@ -2175,14 +2273,14 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 			(port->type != PORT_16550A) &&
 			(!port->board->chip_flag))) {
 		port->IER &= ~UART_IER_THRI;
-		outb(port->IER, port->ioaddr + UART_IER);
+		iowrite8(port->IER, port->ioaddr + UART_IER);
 		return;
 	}
 
 	cnt = port->xmit_cnt;
 	count = port->xmit_fifo_size;
 	do {
-		outb(port->port.xmit_buf[port->xmit_tail++],
+		iowrite8(port->port.xmit_buf[port->xmit_tail++],
 			port->ioaddr + UART_TX);
 		port->xmit_tail = port->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 		if (--port->xmit_cnt <= 0)
@@ -2199,7 +2297,7 @@ static void mxser_transmit_chars(struct tty_struct *tty, struct mxser_port *port
 
 	if (port->xmit_cnt <= 0) {
 		port->IER &= ~UART_IER_THRI;
-		outb(port->IER, port->ioaddr + UART_IER);
+		iowrite8(port->IER, port->ioaddr + UART_IER);
 	}
 }
 
@@ -2228,7 +2326,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 		goto irq_stop;
 	max = brd->info->nports;
 	while (pass_counter++ < MXSER_ISR_PASS_LIMIT) {
-		irqbits = inb(brd->vector) & brd->vector_mask;
+		irqbits = ioread8(brd->vector) & brd->vector_mask;
 		if (irqbits == brd->vector_mask)
 			break;
 
@@ -2243,23 +2341,25 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 			int_cnt = 0;
 			spin_lock(&port->slock);
 			do {
-				iir = inb(port->ioaddr + UART_IIR);
+				iir = ioread8(port->ioaddr + UART_IIR);
 				if (iir & UART_IIR_NO_INT)
 					break;
 				iir &= MOXA_MUST_IIR_MASK;
 				tty = tty_port_tty_get(&port->port);
 				if (!tty ||
-						(port->port.flags & ASYNC_CLOSING) ||
-						!(port->port.flags &
-							ASYNC_INITIALIZED)) {
-					status = inb(port->ioaddr + UART_LSR);
-					outb(0x27, port->ioaddr + UART_FCR);
-					inb(port->ioaddr + UART_MSR);
+					(port->port.flags & ASYNC_CLOSING) ||
+					!(port->port.flags &
+					ASYNC_INITIALIZED)) {
+
+					status = ioread8(port->ioaddr
+						+ UART_LSR);
+					iowrite8(0x27, port->ioaddr + UART_FCR);
+					ioread8(port->ioaddr + UART_MSR);
 					tty_kref_put(tty);
 					break;
 				}
 
-				status = inb(port->ioaddr + UART_LSR);
+				status = ioread8(port->ioaddr + UART_LSR);
 
 				if (status & UART_LSR_PE)
 					port->err_shadow |= NPPI_NOTIFY_PARITY;
@@ -2285,7 +2385,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 						mxser_receive_chars(tty, port,
 								&status);
 				}
-				msr = inb(port->ioaddr + UART_MSR);
+				msr = ioread8(port->ioaddr + UART_MSR);
 				if (msr & UART_MSR_ANY_DELTA)
 					mxser_check_modem_status(tty, port, msr);
 
@@ -2345,6 +2445,8 @@ static bool allow_overlapping_vector;
 module_param(allow_overlapping_vector, bool, S_IRUGO);
 MODULE_PARM_DESC(allow_overlapping_vector, "whether we allow ISA cards to be configured such that vector overlabs IO ports (default=no)");
 
+#ifndef CONFIG_ARCH_MOXART
+
 static bool mxser_overlapping_vector(struct mxser_board *brd)
 {
 	return allow_overlapping_vector &&
@@ -2372,6 +2474,8 @@ static void mxser_release_ISA_res(struct mxser_board *brd)
 	mxser_release_vector(brd);
 }
 
+#endif
+
 static int mxser_initbrd(struct mxser_board *brd,
 		struct pci_dev *pdev)
 {
@@ -2379,8 +2483,8 @@ static int mxser_initbrd(struct mxser_board *brd,
 	unsigned int i;
 	int retval;
 
-	printk(KERN_INFO "mxser: max. baud rate = %d bps\n",
-			brd->ports[0].max_baud);
+/*	pr_info("mxser: max. baud rate = %d bps\n",
+			brd->ports[0].max_baud);*/
 
 	for (i = 0; i < brd->info->nports; i++) {
 		info = &brd->ports[i];
@@ -2408,7 +2512,7 @@ static int mxser_initbrd(struct mxser_board *brd,
 		spin_lock_init(&info->slock);
 
 		/* before set INT ISR, disable all int */
-		outb(inb(info->ioaddr + UART_IER) & 0xf0,
+		iowrite8(ioread8(info->ioaddr + UART_IER) & 0xf0,
 			info->ioaddr + UART_IER);
 	}
 
@@ -2417,9 +2521,12 @@ static int mxser_initbrd(struct mxser_board *brd,
 	if (retval) {
 		for (i = 0; i < brd->info->nports; i++)
 			tty_port_destroy(&brd->ports[i].port);
-		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
+		pr_err("Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
 			brd->info->name, brd->irq);
+	} else {
+		pr_info("mxser: %s success IRQ=%d max baud=%d bps\n", __func__,
+			brd->irq, brd->ports[0].max_baud);
 	}
 
 	return retval;
@@ -2436,11 +2543,46 @@ static void mxser_board_remove(struct mxser_board *brd)
 	free_irq(brd->irq, brd);
 }
 
+static const struct of_device_id moxart_mxser_match[] __initconst = {
+	{ .compatible = "moxa,moxart-mxser" },
+	{ }
+};
+
 static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 {
-	int id, i, bits, ret;
+	int i;
+#ifndef CONFIG_ARCH_MOXART
+	int id, bits, ret;
 	unsigned short regs[16], irq;
 	unsigned char scratch, scratch2;
+#endif
+
+#ifdef CONFIG_ARCH_MOXART
+	struct device_node *node;
+
+	node = of_find_matching_node(NULL, moxart_mxser_match);
+	if (!node) {
+		pr_err("%s: can't find DT node\n", node->full_name);
+		return -EIO;
+	}
+
+	brd->chip_flag = MOXA_MUST_MU860_HWID;
+	brd->info = &mxser_cards[32];
+	brd->vector_mask = 0x0c;
+	brd->irq = irq_of_parse_and_map(node, 0);
+	brd->vector = of_iomap(node, 2); /* UART interrupt vector */
+	brd->uart_type = PORT_16550A;
+	for (i = 0; i <= 1; i++) {
+		/* UART "3" base */
+		brd->ports[i].ioaddr = of_iomap(node, 0) + i * 32;
+
+		brd->ports[i].baud_base = 921600;
+		brd->ports[i].max_baud = 921600;
+
+		/* UART mode base */
+		brd->ports[i].opmode_ioaddr = of_iomap(node, 1);
+	}
+#else
 
 	brd->chip_flag = MOXA_OTHER_UART;
 
@@ -2491,17 +2633,26 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 	}
 
 	if (!irq) {
-		printk(KERN_ERR "mxser: interrupt number unset\n");
+		pr_err("mxser: interrupt number unset\n");
 		return -EIO;
 	}
 	brd->irq = ((int)(irq & 0xF000) >> 12);
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 8; i++) {
+		/*
 		brd->ports[i].ioaddr = (int) regs[i + 1] & 0xFFF8;
+		*/
+		brd->ports[i].ioaddr =
+			ioport_map((int) regs[i + 1] & 0xFFF8, 8);
+	}
 	if ((regs[12] & 0x80) == 0) {
-		printk(KERN_ERR "mxser: invalid interrupt vector\n");
+		pr_err("mxser: invalid interrupt vector\n");
 		return -EIO;
 	}
-	brd->vector = (int)regs[11];	/* interrupt vector */
+
+	/* interrupt vector */
+/*	brd->vector = (int)regs[11];*/
+	brd->vector = ioport_map((int)regs[11], 1);
+
 	if (id == 1)
 		brd->vector_mask = 0x00FF;
 	else
@@ -2515,20 +2666,22 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 			brd->ports[i].max_baud = 115200;
 		}
 	}
-	scratch2 = inb(cap + UART_LCR) & (~UART_LCR_DLAB);
-	outb(scratch2 | UART_LCR_DLAB, cap + UART_LCR);
-	outb(0, cap + UART_EFR);	/* EFR is the same as FCR */
-	outb(scratch2, cap + UART_LCR);
-	outb(UART_FCR_ENABLE_FIFO, cap + UART_FCR);
-	scratch = inb(cap + UART_IIR);
+	scratch2 = ioread8(cap + UART_LCR) & (~UART_LCR_DLAB);
+	iowrite8(scratch2 | UART_LCR_DLAB, cap + UART_LCR);
+	iowrite8(0, cap + UART_EFR);	/* EFR is the same as FCR */
+	iowrite8(scratch2, cap + UART_LCR);
+	iowrite8(UART_FCR_ENABLE_FIFO, cap + UART_FCR);
+	scratch = ioread8(cap + UART_IIR);
 
 	if (scratch & 0xC0)
 		brd->uart_type = PORT_16550A;
 	else
 		brd->uart_type = PORT_16450;
+
+
 	if (!request_region(brd->ports[0].ioaddr, 8 * brd->info->nports,
 			"mxser(IO)")) {
-		printk(KERN_ERR "mxser: can't request ports I/O region: "
+		pr_err("mxser: can't request ports I/O region: "
 				"0x%.8lx-0x%.8lx\n",
 				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
 				8 * brd->info->nports - 1);
@@ -2538,17 +2691,22 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 	ret = mxser_request_vector(brd);
 	if (ret) {
 		release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
-		printk(KERN_ERR "mxser: can't request interrupt vector region: "
+		pr_err("mxser: can't request interrupt vector region: "
 				"0x%.8lx-0x%.8lx\n",
 				brd->ports[0].ioaddr, brd->ports[0].ioaddr +
 				8 * brd->info->nports - 1);
 		return ret;
 	}
+
+#endif
+
 	return brd->info->nports;
 
+#ifndef CONFIG_ARCH_MOXART
 err_irqconflict:
-	printk(KERN_ERR "mxser: invalid interrupt number\n");
+	pr_err("mxser: invalid interrupt number\n");
 	return -EIO;
+#endif
 }
 
 static int mxser_probe(struct pci_dev *pdev,
@@ -2590,20 +2748,25 @@ static int mxser_probe(struct pci_dev *pdev,
 		goto err_dis;
 
 	brd->info = &mxser_cards[ent->driver_data];
-	for (i = 0; i < brd->info->nports; i++)
+	for (i = 0; i < brd->info->nports; i++) {
+		/*
 		brd->ports[i].ioaddr = ioaddress + 8 * i;
+		*/
+		brd->ports[i].ioaddr = ioport_map(ioaddress + 8 * i, 8);
+	}
 
 	/* vector */
 	ioaddress = pci_resource_start(pdev, 3);
 	retval = pci_request_region(pdev, 3, "mxser(vector)");
 	if (retval)
 		goto err_zero;
-	brd->vector = ioaddress;
+/*	brd->vector = ioaddress;*/
+	brd->vector = ioport_map(ioaddress, 1);
 
 	/* irq */
 	brd->irq = pdev->irq;
 
-	brd->chip_flag = CheckIsMoxaMust(brd->ports[0].ioaddr);
+	brd->chip_flag = check_is_moxa_must(brd->ports[0].ioaddr);
 	brd->uart_type = PORT_16550A;
 	brd->vector_mask = 0;
 
@@ -2623,13 +2786,22 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	if (brd->chip_flag == MOXA_MUST_MU860_HWID) {
 		for (i = 0; i < brd->info->nports; i++) {
-			if (i < 4)
+			if (i < 4) {
+				/*
 				brd->ports[i].opmode_ioaddr = ioaddress + 4;
-			else
+				*/
+				brd->ports[i].opmode_ioaddr =
+					ioport_map(ioaddress + 4, 8);
+			} else {
+				/*
 				brd->ports[i].opmode_ioaddr = ioaddress + 0x0c;
+				*/
+				brd->ports[i].opmode_ioaddr =
+					ioport_map(ioaddress + 0x0c, 8);
+			}
 		}
-		outb(0, ioaddress + 4);	/* default set to RS232 mode */
-		outb(0, ioaddress + 0x0c);	/* default set to RS232 mode */
+		iowrite8(0, ioaddress + 4);	/* default set to RS232 mode */
+		iowrite8(0, ioaddress + 0x0c);	/* default set to RS232 mode */
 	}
 
 	for (i = 0; i < brd->info->nports; i++) {
@@ -2707,7 +2879,7 @@ static int __init mxser_module_init(void)
 	if (!mxvar_sdriver)
 		return -ENOMEM;
 
-	printk(KERN_INFO "MOXA Smartio/Industio family driver version %s\n",
+	pr_info("MOXA Smartio/Industio family driver version %s\n",
 		MXSER_VERSION);
 
 	/* Initialize the tty_driver structure */
@@ -2723,15 +2895,22 @@ static int __init mxser_module_init(void)
 
 	retval = tty_register_driver(mxvar_sdriver);
 	if (retval) {
-		printk(KERN_ERR "Couldn't install MOXA Smartio/Industio family "
+		pr_err("Couldn't install MOXA Smartio/Industio family "
 				"tty driver !\n");
 		goto err_put;
 	}
 
 	/* Start finding ISA boards here */
 	for (m = 0, b = 0; b < MXSER_BOARDS; b++) {
+
+#ifndef CONFIG_ARCH_MOXART
+		/*
+		no continue if no ioaddr param fed to module
+		(force past for UC-7112-LX)
+		*/
 		if (!ioaddr[b])
 			continue;
+#endif
 
 		brd = &mxser_boards[m];
 		retval = mxser_get_ISA_conf(ioaddr[b], brd);
@@ -2740,12 +2919,14 @@ static int __init mxser_module_init(void)
 			continue;
 		}
 
-		printk(KERN_INFO "mxser: found MOXA %s board (CAP=0x%lx)\n",
+		pr_info("mxser: found MOXA %s board (CAP=0x%lx)\n",
 				brd->info->name, ioaddr[b]);
 
 		/* mxser_initbrd will hook ISR. */
 		if (mxser_initbrd(brd, NULL) < 0) {
+#ifndef CONFIG_ARCH_MOXART
 			mxser_release_ISA_res(brd);
+#endif
 			brd->info = NULL;
 			continue;
 		}
@@ -2761,7 +2942,9 @@ static int __init mxser_module_init(void)
 				for (i = 0; i < brd->info->nports; i++)
 					tty_port_destroy(&brd->ports[i].port);
 				free_irq(brd->irq, brd);
+#ifndef CONFIG_ARCH_MOXART
 				mxser_release_ISA_res(brd);
+#endif
 				brd->info = NULL;
 				break;
 			}
@@ -2774,7 +2957,7 @@ static int __init mxser_module_init(void)
 
 	retval = pci_register_driver(&mxser_driver);
 	if (retval) {
-		printk(KERN_ERR "mxser: can't register pci driver\n");
+		pr_err("mxser: can't register pci driver\n");
 		if (!m) {
 			retval = -ENODEV;
 			goto err_unr;
@@ -2801,9 +2984,11 @@ static void __exit mxser_module_exit(void)
 	tty_unregister_driver(mxvar_sdriver);
 	put_tty_driver(mxvar_sdriver);
 
+#ifndef CONFIG_ARCH_MOXART
 	for (i = 0; i < MXSER_BOARDS; i++)
 		if (mxser_boards[i].info != NULL)
 			mxser_release_ISA_res(&mxser_boards[i]);
+#endif
 }
 
 module_init(mxser_module_init);

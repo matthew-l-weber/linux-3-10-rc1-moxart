@@ -221,6 +221,18 @@ config TI_EDMA
 	  Enable support for the TI EDMA controller. This DMA
 	  engine is found on TI DaVinci and AM33xx parts.
 
+config MOXART_DMA
+    tristate "MOXART DMA support"
+    depends on ARCH_MOXART
+    select DMA_ENGINE
+    select DMA_VIRTUAL_CHANNELS
+    default n
+    help
+      Enable support for the MOXART DMA controller. This DMA
+      engine is found on MOXART SoC.
+	  This uses both APB and AHB and the main purpose
+	  is to provide burst transfer from/to MMC peripheral.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
 

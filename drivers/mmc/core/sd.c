@@ -831,9 +831,11 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 		/*
 		 * Fetch switch information from card.
 		 */
-		err = mmc_read_switch(card);
-		if (err)
-			return err;
+		if (card->host->caps & MMC_CAP_SD_HIGHSPEED) {
+			err = mmc_read_switch(card);
+			if (err)
+				return err;
+		}
 	}
 
 	/*
