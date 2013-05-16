@@ -13,6 +13,8 @@
 
 #include <asm/exception.h>
 
+#include "irqchip.h"
+
 #define LEVEL               0
 #define EDGE                1
 #define H_ACTIVE            0
@@ -48,6 +50,8 @@
 static void __iomem *moxart_irq_base;
 static struct irq_domain *moxart_irq_domain;
 static unsigned int interrupt_mask;
+
+asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs);
 
 void moxart_irq_ack(struct irq_data *irqd)
 {
@@ -99,10 +103,10 @@ static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 			__func__, virq, (unsigned int) hw);
 	}
 
-/*
+	/*
 	irq_set_chip_and_handler(virq, &moxart_irq_chip,
 		handle_percpu_devid_irq);
-*/
+	*/
 
 	set_irq_flags(virq, IRQF_VALID /*| IRQF_PROBE*/);
 
@@ -117,7 +121,7 @@ static struct irq_domain_ops moxart_irq_ops = {
 static int __init moxart_of_init(struct device_node *node,
 				struct device_node *parent)
 {
-/*	unsigned int irq;*/
+	/*unsigned int irq;*/
 
 	interrupt_mask = be32_to_cpup(of_get_property(node,
 		"interrupt-mask", NULL));
@@ -127,30 +131,29 @@ static int __init moxart_of_init(struct device_node *node,
 	if (!moxart_irq_base)
 		panic("%s: unable to map IC registers\n", node->full_name);
 
-/*
+
 	moxart_irq_domain = irq_domain_add_linear(node,
 		32, &moxart_irq_ops, NULL);
+
+	/* debug, virtual irq the same as hwirq
 	moxart_irq_domain = irq_domain_add_legacy(node,
-		32, 0, 0, &irq_domain_simple_ops, NULL);
-*/
-	moxart_irq_domain = irq_domain_add_legacy(node,
-		32, 0, 0, &moxart_irq_ops, NULL);
+		32, 0, 0, &moxart_irq_ops, NULL);*/
+
 	if (!moxart_irq_domain)
 		panic("%s: unable to create IRQ domain\n", node->full_name);
 
-/*
+	/* debug, print irq map
 	for (irq = 0; irq < 32; irq++) {
 		virq = irq_create_mapping(moxart_irq_domain, irq);
 		pr_info("%s: irq_create_mapping(moxart_irq_domain, %d) == %d\n",
 			node->full_name, irq, virq);
 	}
-
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		pr_info("%s: irq_find_mapping(moxart_irq_domain, %d) == %d\n",
 			node->full_name, irq,
 			irq_find_mapping(moxart_irq_domain, irq));
 	}
-*/
+	*/
 
 	writel(0, IRQ_MASK(moxart_irq_base));
 	writel(0xffffffff, IRQ_CLEAR(moxart_irq_base));
@@ -158,21 +161,13 @@ static int __init moxart_of_init(struct device_node *node,
 	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
 	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
 
+	set_handle_irq(moxart_handle_irq);
+
 	pr_info("%s: %s finished\n", node->full_name, __func__);
 
 	return 0;
 }
-
-static struct of_device_id moxart_interrupt_controller_match[] __initconst = {
-	{	.compatible = "moxa,moxart-interrupt-controller",
-		.data = moxart_of_init },
-	{ }
-};
-
-void __init moxart_init_irq(void)
-{
-	of_irq_init(moxart_interrupt_controller_match);
-}
+IRQCHIP_DECLARE(moxa_moxart_ic, "moxa,moxart-interrupt-controller", moxart_of_init);
 
 asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs)
 {

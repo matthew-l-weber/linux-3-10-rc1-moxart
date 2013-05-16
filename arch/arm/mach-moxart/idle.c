@@ -18,8 +18,15 @@ static void moxart_idle(void)
 	 * should call enable_hlt() in init code, since by default it is
 	 * disabled.
 	 */
-/*	local_irq_enable();
-	cpu_do_idle();*/
+		
+	/*	
+	comment two lines below from gemini (text above also from gemini).
+	leaving this an empty function is the only way the kernel boots all the way to init. 
+	( http://lists.infradead.org/pipermail/linux-arm-kernel/2013-May/168472.html )
+	
+	local_irq_enable();
+	cpu_do_idle();
+	*/
 }
 
 static int __init moxart_idle_init(void)

@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/clocksource.h>
 
 #include <asm/mach/time.h>
 
@@ -91,20 +92,10 @@ static struct irqaction moxart_timer_irq = {
 	.handler = moxart_timer_interrupt,
 };
 
-static struct of_device_id moxart_timer_dt_ids[] = {
-	{ .compatible = "moxa,moxart-timer" },
-	{ }
-};
-
-void __init moxart_timer_init(void)
+static void __init moxart_timer_init(struct device_node *node)
 {
-	struct device_node *node;
 	int ret, irq;
-
-	node = of_find_matching_node(NULL, moxart_timer_dt_ids);
-	if (!node)
-		panic("%s: can't find DT node\n", node->full_name);
-
+	
 	timer_base = of_iomap(node, 0);
 	if (!timer_base)
 		panic("%s: failed to map base\n", node->full_name);
@@ -128,5 +119,6 @@ void __init moxart_timer_init(void)
 	pr_info("%s: count/load (APB_CLK=%d/HZ=%d) IRQ=%d\n",
 		node->full_name, APB_CLK, HZ, irq);
 }
-
+CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer",
+    moxart_timer_init);
 

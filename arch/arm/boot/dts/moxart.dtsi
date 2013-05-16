@@ -50,7 +50,7 @@
 		gpio: gpio@98700000 {
 			compatible = "moxa,moxart-gpio";
 			reg =	<0x98700000 0x1000>,
-					<0x98100000 0x1000>;		/* PMU */
+					<0x98100000 0x1000>;		/* Power Management Unit */
 		};
 
 		rtc: rtc {

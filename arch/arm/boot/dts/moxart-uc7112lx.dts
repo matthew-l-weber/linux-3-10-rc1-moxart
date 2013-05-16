@@ -43,7 +43,7 @@
 	mmc@98e00000 {
 		compatible = "moxa,moxart-mmc";
 		reg =	<0x98e00000 0x00001000>,
-				<0x98100000 0x1000>;		/* PMU */
+				<0x98100000 0x1000>;		/* Power Management Unit */
 		interrupts = <5 0>;
 	};
 
