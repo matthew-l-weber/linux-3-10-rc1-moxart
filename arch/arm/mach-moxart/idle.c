@@ -9,24 +9,7 @@
 #include <asm/proc-fns.h>
 
 static void moxart_idle(void)
-{
-	/*
-	 * Because of broken hardware we have to enable interrupts or the CPU
-	 * will never wakeup... Acctualy it is not very good to enable
-	 * interrupts first since scheduler can miss a tick, but there is
-	 * no other way around this. Platforms that needs it for power saving
-	 * should call enable_hlt() in init code, since by default it is
-	 * disabled.
-	 */
-		
-	/*	
-	comment two lines below from gemini (text above also from gemini).
-	leaving this an empty function is the only way the kernel boots all the way to init. 
-	( http://lists.infradead.org/pipermail/linux-arm-kernel/2013-May/168472.html )
-	
-	local_irq_enable();
-	cpu_do_idle();
-	*/
+{	
 }
 
 static int __init moxart_idle_init(void)
