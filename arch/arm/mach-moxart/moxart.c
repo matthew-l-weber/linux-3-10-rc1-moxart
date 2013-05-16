@@ -11,12 +11,12 @@
 
 #include <asm/mach/arch.h>
 
-static const char * const moxart_board_dt_compat[] = {
+static const char * const moxart_dt_compat[] = {
 	"moxa,moxart-uc-7112-lx",
 	NULL,
 };
 
 DT_MACHINE_START(MOXART, "MOXA UC-7112-LX")
-	.dt_compat		= moxart_board_dt_compat,
+	.dt_compat		= moxart_dt_compat,
 MACHINE_END
 
