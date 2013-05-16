@@ -9,7 +9,7 @@
 #include <asm/proc-fns.h>
 
 static void moxart_idle(void)
-{	
+{
 }
 
 static int __init moxart_idle_init(void)

@@ -85,7 +85,6 @@
 		/* uncomment to use on board flash root
 		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rootfstype=jffs2 rw";
 		*/
-		/*bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";*/
-		bootargs = "initcall_debug debug loglevel=9 console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";
 	};
 };
