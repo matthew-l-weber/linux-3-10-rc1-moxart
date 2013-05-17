@@ -176,7 +176,6 @@ static int __init moxart_gpio_init(void)
 postcore_initcall(moxart_gpio_init);
 /*module_platform_driver(moxart_gpio_driver);*/
 
-
 MODULE_ALIAS("platform:moxart-gpio");
 MODULE_DESCRIPTION("MOXART GPIO chip driver");
 MODULE_VERSION("1.0");
