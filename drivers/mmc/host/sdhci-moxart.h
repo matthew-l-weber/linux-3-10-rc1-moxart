@@ -117,6 +117,8 @@ struct moxart_host {
 	struct mmc_host			*mmc;
 	struct mmc_request		*mrq;
 
+	struct clk				*clk;
+
 	struct scatterlist		*cur_sg;
 	unsigned int			num_sg;
 	unsigned int			remain;

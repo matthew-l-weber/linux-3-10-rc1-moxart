@@ -705,19 +705,7 @@ struct __initdata platform_driver moxart_mac_driver = {
 	.resume      = NULL,
 */
 };
-
-static int __init moxart_mac_init(void)
-{
-	return platform_driver_register(&moxart_mac_driver);
-}
-
-static void __exit moxart_mac_exit(void)
-{
-	platform_driver_unregister(&moxart_mac_driver);
-}
-
-module_init(moxart_mac_init)
-module_exit(moxart_mac_exit)
+module_platform_driver(moxart_mac_driver);
 
 MODULE_ALIAS("platform:moxart-ethernet");
 MODULE_DESCRIPTION("MOXART RTL8201CP Ethernet driver");

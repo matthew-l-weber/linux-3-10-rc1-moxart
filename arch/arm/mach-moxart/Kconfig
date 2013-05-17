@@ -5,6 +5,7 @@ config ARCH_MOXART
 	select USE_OF
 	select CLKSRC_OF
 	select HAVE_CLK
+	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
 	select ARCH_REQUIRE_GPIOLIB
 	help

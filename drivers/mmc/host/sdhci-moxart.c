@@ -23,6 +23,7 @@
 #include <linux/sizes.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/clk.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -578,8 +579,9 @@ static void moxart_get_sysclk(struct moxart_host *host, void __iomem *reg_pmu)
 		"%s: host->sysclk=%d mul=%d div=%d val=%d\n",
 		__func__, host->sysclk, mul, div, val);
 	dev_info(mmc_dev(host->mmc),
-        "%s: host->sysclk=%d mul=%d div=%d val=%d\n",
-        __func__, host->sysclk, mul, div, val);
+		"%s: host->sysclk=%d mul=%d div=%d val=%d\n",
+		__func__, host->sysclk, mul, div, val);
+	/* host->sysclk=77500000 mul=80 div=2 val=0 */
 }
 
 static int moxart_get_ro(struct mmc_host *mmc)
@@ -671,6 +673,14 @@ static int moxart_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
+	host->clk = devm_clk_get(dev, "sys_clk");
+	if (IS_ERR(host->clk)) {
+		dev_warn(dev, "can not get sysclk\n");
+	}
+	else {
+		dev_info(dev, "sysclk=%lu\n", clk_round_rate(host->clk, 0));
+	}
+	
 #ifdef MSD_SUPPORT_GET_CLOCK
 	moxart_get_sysclk(host, reg_pmu);
 #endif
@@ -800,19 +810,7 @@ static struct platform_driver moxart_mmc_driver = {
 		.of_match_table	= moxart_mmc_match,
 	},
 };
-
-static int __init moxart_init(void)
-{
-	return platform_driver_register(&moxart_mmc_driver);
-}
-
-static void __exit moxart_exit(void)
-{
-	platform_driver_unregister(&moxart_mmc_driver);
-}
-
-module_init(moxart_init);
-module_exit(moxart_exit);
+module_platform_driver(moxart_mmc_driver);
 
 MODULE_ALIAS("platform:sdhci-moxart");
 MODULE_DESCRIPTION("MOXART SDHCI driver");

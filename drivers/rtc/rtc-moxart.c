@@ -304,19 +304,7 @@ static struct platform_driver moxart_rtc_driver = {
 		.of_match_table = moxart_rtc_match,
 	},
 };
-
-static __init int moxart_rtc_init(void)
-{
-	return platform_driver_register(&moxart_rtc_driver);
-}
-
-static __exit void moxart_rtc_exit(void)
-{
-	platform_driver_unregister(&moxart_rtc_driver);
-}
-
-module_init(moxart_rtc_init);
-module_exit(moxart_rtc_exit);
+module_platform_driver(moxart_rtc_driver);
 
 MODULE_ALIAS("platform:rtc-moxart");
 MODULE_DESCRIPTION("MOXART RTC driver");

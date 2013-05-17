@@ -393,19 +393,7 @@ static struct platform_driver moxart_wdt_driver = {
 		.of_match_table = moxart_watchdog_match,
 	},
 };
-
-static int __init moxart_wdt_init(void)
-{
-	return platform_driver_register(&moxart_wdt_driver);
-}
-
-static void __exit moxart_wdt_exit(void)
-{
-	platform_driver_unregister(&moxart_wdt_driver);
-}
-
-module_init(moxart_wdt_init);
-module_exit(moxart_wdt_exit);
+module_platform_driver(moxart_wdt_driver);
 
 MODULE_DESCRIPTION("MOXART watchdog driver");
 MODULE_LICENSE("GPL");
