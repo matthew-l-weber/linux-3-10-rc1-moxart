@@ -69,7 +69,7 @@ static int wdt_user_enabled;
 static unsigned long wdt_time = DEFAULT_WATCHDOG_TIME;
 static struct timer_list wdt_timer;
 static struct work_struct rebootqueue;
-static __iomem void *reg_wdt;
+static void __iomem *reg_wdt;
 
 static void wdt_enable(void)
 {

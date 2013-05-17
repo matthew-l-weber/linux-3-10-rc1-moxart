@@ -4,6 +4,7 @@ config ARCH_MOXART
 	select ARM_DMA_MEM_BUFFERABLE
 	select USE_OF
 	select CLKSRC_OF
+	select HAVE_CLK
 	select GENERIC_IRQ_CHIP
 	select ARCH_REQUIRE_GPIOLIB
 	help

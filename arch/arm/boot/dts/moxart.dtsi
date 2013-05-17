@@ -50,7 +50,7 @@
 		gpio: gpio@98700000 {
 			compatible = "moxa,moxart-gpio";
 			reg =	<0x98700000 0x1000>,
-					<0x98100000 0x1000>;		/* Power Management Unit */
+					<0x98100100 0x4>;			/* Power Management Unit */
 		};
 
 		rtc: rtc {
@@ -66,6 +66,17 @@
 		watchdog: watchdog@98500000 {
 			compatible = "moxa,moxart-watchdog";
 			reg = <0x98500000 0x1000>;
+		};
+
+		pmu@98100000 {
+			compatible = "moxa,moxart-pmu";
+			reg = <0x98100000 0x34>;			/* Power Management Unit */
+			clocks {
+				sysclk: sysclk {
+					#clock-cells = <0>;
+					compatible = "moxa,moxart-device-clock";
+				};
+			};
 		};
 	};
 };

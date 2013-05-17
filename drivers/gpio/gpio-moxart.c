@@ -23,17 +23,17 @@
 #define GPIO_DATA_IN(base_addr)             (base_addr + 0x04)
 #define GPIO_PIN_DIRECTION(base_addr)       (base_addr + 0x08)
 
-static __iomem void *moxart_pmu_base;
-static __iomem void *moxart_gpio_base;
+static void __iomem *moxart_pmu_base;
+static void __iomem *moxart_gpio_base;
 
 void moxart_gpio_enable(u32 gpio)
 {
-	writel(readl(moxart_pmu_base + 0x100) | gpio, moxart_pmu_base + 0x100);
+	writel(readl(moxart_pmu_base) | gpio, moxart_pmu_base);
 }
 
 void moxart_gpio_disable(u32 gpio)
 {
-	writel(readl(moxart_pmu_base + 0x100) & ~gpio, moxart_pmu_base + 0x100);
+	writel(readl(moxart_pmu_base) & ~gpio, moxart_pmu_base);
 }
 
 static int moxart_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -144,6 +144,9 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	moxart_gpio_direction_output(&moxart_gpio_chip, SW_READY_GPIO, 0);
 	moxart_gpio_direction_input(&moxart_gpio_chip, SW_RESET_GPIO);
 	moxart_gpio_set(&moxart_gpio_chip, SW_READY_GPIO, 0);
+	
+	/* change I/O multiplexing to SD (not needed) */
+	/* moxart_gpio_disable(0xff << 10);*/ 
 
 	/*	readyled is lit on SW_READY_GPIO=0, use SW_READY_GPIO=1 to
 		shut it off after boot (bootloader switches it on) */

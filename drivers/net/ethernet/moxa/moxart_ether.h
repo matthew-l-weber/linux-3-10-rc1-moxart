@@ -501,8 +501,6 @@ struct moxart_mac_priv_t {
 	void __iomem *base;
 	void __iomem *flash_base;
 
-	unsigned int flash_offset;
-
 	/* Tx descriptor physical base address */
 	unsigned int phy_tx_desc_baseaddr;
 

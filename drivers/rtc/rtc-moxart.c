@@ -291,7 +291,7 @@ static int moxart_rtc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id moxart_rtc_match[] = {
-	{ .compatible = "moxart,moxart-rtc" },
+	{ .compatible = "moxa,moxart-rtc" },
 	{ },
 };
 

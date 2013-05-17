@@ -545,13 +545,12 @@ static void moxart_get_mac_address(struct net_device *dev)
 	int i;
 
 	netdev_dbg(dev,
-		"%s base_addr=%lx base=%p flash_base=%p flash_offset=%x\n",
+		"%s base_addr=%lx base=%p flash_base=%p\n",
 		__func__, dev->base_addr, priv->base,
-		priv->flash_base, priv->flash_offset);
+		priv->flash_base);
 
 	for (i = 0; i <= 5; i++)
-		dev->dev_addr[i] = readb(priv->flash_base +
-			priv->flash_offset + i);
+		dev->dev_addr[i] = readb(priv->flash_base + i);
 }
 
 static int moxart_mac_probe(struct platform_device *pdev)
@@ -602,8 +601,6 @@ static int moxart_mac_probe(struct platform_device *pdev)
 			__func__);
 		goto init_fail;
 	}
-	priv->flash_offset = be32_to_cpup(
-		of_get_property(node, "flash-offset", NULL));
 
 	/* initialize the private variable to zero */
 	/* memset((void *) priv, 0, sizeof(struct moxart_mac_priv_t)); */

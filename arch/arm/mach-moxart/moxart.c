@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/clk-provider.h>
 
 #include <asm/mach/arch.h>
 
@@ -16,7 +17,19 @@ static const char * const moxart_dt_compat[] = {
 	NULL,
 };
 
+/*static const __initconst struct of_device_id clk_match[] = {
+    { .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
+    { }
+};*/
+
+static void __init moxart_init(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_clk_init(NULL);
+}
+
 DT_MACHINE_START(MOXART, "MOXA UC-7112-LX")
+	.init_machine	= moxart_init,
 	.dt_compat		= moxart_dt_compat,
 MACHINE_END
 

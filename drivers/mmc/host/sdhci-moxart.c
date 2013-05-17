@@ -547,7 +547,7 @@ static void moxart_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void moxart_get_sysclk(struct moxart_host *host, __iomem void *reg_pmu)
+static void moxart_get_sysclk(struct moxart_host *host, void __iomem *reg_pmu)
 {
 	unsigned int mul, val, div;
 	mul = (readl(reg_pmu + 0x30) >> 3) & 0x1ff;
@@ -577,6 +577,9 @@ static void moxart_get_sysclk(struct moxart_host *host, __iomem void *reg_pmu)
 	dev_dbg(mmc_dev(host->mmc),
 		"%s: host->sysclk=%d mul=%d div=%d val=%d\n",
 		__func__, host->sysclk, mul, div, val);
+	dev_info(mmc_dev(host->mmc),
+        "%s: host->sysclk=%d mul=%d div=%d val=%d\n",
+        __func__, host->sysclk, mul, div, val);
 }
 
 static int moxart_get_ro(struct mmc_host *mmc)
@@ -601,7 +604,8 @@ static int moxart_probe(struct platform_device *pdev)
 	struct resource res_pmu, res_mmc;
 	struct mmc_host *mmc;
 	struct moxart_host *host = NULL;
-	__iomem void *reg_mmc, *reg_pmu;
+	void __iomem *reg_mmc;
+	void __iomem *reg_pmu;
 	dma_cap_mask_t mask;
 	int ret;
 	struct dma_slave_config cfg;
@@ -672,9 +676,6 @@ static int moxart_probe(struct platform_device *pdev)
 #endif
 
 	spin_lock_init(&host->lock);
-
-	/* change I/O multiplexing to SD, so the GPIO 17-10 will be fail */
-	writel(readl(reg_pmu + 0x100) & ~(0xff << 10), reg_pmu + 0x100);
 
 	/* disable all interrupt */
 	writel(0, &host->reg->interrupt_mask);

@@ -43,7 +43,7 @@
 	mmc@98e00000 {
 		compatible = "moxa,moxart-mmc";
 		reg =	<0x98e00000 0x00001000>,
-				<0x98100000 0x1000>;		/* Power Management Unit */
+				<0x98100000 0x34>;			/* Power Management Unit */
 		interrupts = <5 0>;
 	};
 
@@ -58,17 +58,15 @@
 	mac0: mac@90900000 {
 		compatible = "moxa,moxart-mac0";
 		reg =   <0x90900000 0x1000>,
-				<0x80000000 0x01000000>;	/* MAC address stored on flash */
+				<0x80000050 0x5>;			/* MAC address stored on flash */
 		interrupts = <25 0>;
-		flash-offset = <0x50>;
 	};
 
 	mac1: mac@92000000 {
 		compatible = "moxa,moxart-mac1";
 		reg =   <0x92000000 0x1000>,
-				<0x80000000 0x01000000>;	/* MAC address stored on flash */
+				<0x80000056 0x5>;			/* MAC address stored on flash */
 		interrupts = <27 0>;
-		flash-offset = <0x56>;
 	};
 
 	uart0: uart@98200000 {
