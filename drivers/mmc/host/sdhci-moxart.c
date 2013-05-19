@@ -31,7 +31,6 @@
 #include "sdhci-moxart.h"
 
 #define APB_CLK					48000000
-#define MSD_SUPPORT_GET_CLOCK
 #define DMA_FIFO_LEN_FORCE		0
 #define APB_DMA_SD_REQ_NO		5
 #define MIN_POWER (MMC_VDD_360 - MSD_SD_POWER_MASK)
@@ -617,11 +616,7 @@ static int moxart_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-#ifdef MSD_SUPPORT_GET_CLOCK
 	host->clk = devm_clk_get(dev, "sys_clk");
-#else
-	host->clk = devm_clk_get(dev, "apb_clk");
-#endif
 	if (IS_ERR(host->clk)) {
 		dev_err(dev, "could not get clock\n");
 		host->sysclk = APB_CLK;

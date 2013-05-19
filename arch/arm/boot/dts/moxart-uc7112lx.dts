@@ -44,8 +44,8 @@
 		compatible = "moxa,moxart-mmc";
 		reg =	<0x98e00000 0x00001000>;
 		interrupts = <5 0>;
-		clock-names = "sys_clk", "apb_clk";
-		clocks = <&sys_clk> , <&apb_clk>;
+		clock-names = "sys_clk";
+		clocks = <&sys_clk>;
 	};
 
 	mxser@98200040 {

@@ -80,14 +80,5 @@
 				};
 			};
 		};
-
-		clocks {
-			apb_clk: apb_clk {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <48000000>;
-				clock-output-names = "apb_clk";
-			};
-		};
 	};
 };

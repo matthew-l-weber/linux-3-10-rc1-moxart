@@ -124,6 +124,11 @@ static int moxart_clk_probe(struct platform_device *pdev)
    
 	err = of_clk_add_provider(clk_node, of_clk_src_simple_get, clk);
 
+	/*	calling of_clk_init here means it can be removed from init_machine which
+		can then itself be removed entirely.
+		this needs to happen or fixed-clock "apb_clk" will not get registered */
+	/*	of_clk_init(NULL); unfortunately this means __init section mismatch */
+
 	dev_info(&pdev->dev, "finished %s\n", __func__);
 
 	return err;
