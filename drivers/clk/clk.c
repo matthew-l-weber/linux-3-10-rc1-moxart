@@ -2069,14 +2069,18 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 {
 	struct of_clk_provider *provider;
 	struct clk *clk = ERR_PTR(-ENOENT);
+	
+	pr_info("%s\n", __func__);
 
 	/* Check if we have such a provider in our array */
 	mutex_lock(&of_clk_lock);
 	list_for_each_entry(provider, &of_clk_providers, link) {
 		if (provider->node == clkspec->np)
 			clk = provider->get(clkspec, provider->data);
-		if (!IS_ERR(clk))
+		if (!IS_ERR(clk)) {
+			pr_info("%s: of_clk_get_from_provider found a provider!\n", __func__);
 			break;
+		}
 	}
 	mutex_unlock(&of_clk_lock);
 

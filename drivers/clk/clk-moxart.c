@@ -22,15 +22,6 @@ struct clk_device {
 	spinlock_t		*lock;
 };
 
-/*
-static int moxart_set_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long parent_rate)
-{
-	struct moxart_clk *dev_clk = container_of(hw, struct moxart_clk,
-						  fll_hw);
-}
-*/
-
 static long moxart_round_rate(struct clk_hw *c_hw, unsigned long parent_rate, unsigned long *p)
 {
 	unsigned int mul, val, div, ret;
@@ -60,30 +51,38 @@ static long moxart_round_rate(struct clk_hw *c_hw, unsigned long parent_rate, un
 	}
 	ret = (38684 * mul + 10000) / (div * 10000);
 	ret = (ret * 1000000) / 2;
-	pr_info("%s: ret=%d mul=%d div=%d val=%d\n",
+	pr_debug("%s: ret=%d mul=%d div=%d val=%d\n",
 		__func__, ret, mul, div, val);
+	/* usually host->sysclk=77500000 mul=80 div=2 val=0 */
 	return ret;	
 }
 
 static const struct clk_ops moxart_clk_ops = {
-/*	.set_rate = moxart_set_rate,*/
 	.round_rate = moxart_round_rate,
+};
+
+static const struct of_device_id moxart_pmu_match[] = {
+	{ .compatible = "moxa,moxart-pmu" },
+	{ },
+};
+
+static const struct of_device_id moxart_sysclk_match[] = {
+    { .compatible = "moxa,moxart-sysclk" },
+    { }
 };
 
 static int moxart_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
+	struct device_node *clk_node;
 	struct clk *clk;
 	struct clk_device *dev_clk;
 	const char *clk_name;
-	const char *parent_name;
 	struct clk_init_data init;
 	struct resource res_pmu;
 	int err;
 	
-	dev_info(&pdev->dev, "start %s\n", __func__);
-   
 	dev_clk = devm_kzalloc(&pdev->dev, sizeof(*dev_clk), GFP_KERNEL);
 	if (WARN_ON(!dev_clk))
 		return -ENOMEM;
@@ -92,7 +91,7 @@ static int moxart_clk_probe(struct platform_device *pdev)
 
 	err = of_address_to_resource(node, 0, &res_pmu);
 	if (err) {
-		dev_err(&pdev->dev, "could not get power management unit base resource\n");
+		dev_err(&pdev->dev, "could not get PMU base resource\n");
 		return err;
 	}
    
@@ -102,21 +101,17 @@ static int moxart_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(dev_clk->reg_pmu);
 	}
 
-/*	parent_name = of_clk_get_parent_name(pdev->dev.of_node, 0);
-	if (!parent_name)
-		return -EINVAL;*/
+	clk_node = of_find_matching_node(NULL, moxart_sysclk_match);
+	if (!clk_node)
+		pr_err("%s: can't find DT node\n", clk_node->full_name);
 
-	clk_name = pdev->dev.of_node->name;
-	of_property_read_string(pdev->dev.of_node, "clock-output-names",
+	clk_name = clk_node->name;
+	of_property_read_string(clk_node, "clock-output-names",
 		&clk_name);
-	clk_name = "sys_clk";
 	
-	dev_info(&pdev->dev, "clk_name=%s\n", clk_name);
-
 	init.name = clk_name;
 	init.ops = &moxart_clk_ops;
 	init.flags = 0;
-	init.parent_names = &parent_name;
 	init.num_parents = 0;
 	
 	dev_clk->hw.init = &init;
@@ -126,14 +121,13 @@ static int moxart_clk_probe(struct platform_device *pdev)
 		kfree(dev_clk);
 		return PTR_ERR(clk);
 	}
-
-	err = of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get, clk);
+   
+	err = of_clk_add_provider(clk_node, of_clk_src_simple_get, clk);
 
 	dev_info(&pdev->dev, "finished %s\n", __func__);
 
 	return err;
 }
-/*CLK_OF_DECLARE(moxart_clk_device, "moxa,moxart-device-clock", moxart_device_clk_init);*/
 
 static int moxart_clk_remove(struct platform_device *pdev)
 {
@@ -142,19 +136,13 @@ static int moxart_clk_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id moxart_clk_match[] = {
-	{ .compatible = "moxa,moxart-pmu" },
-	{ },
-};
-/*MODULE_DEVICE_TABLE(of, moxart_clk_ids);*/
-
 static struct platform_driver moxart_clk_driver = {
 	.probe = moxart_clk_probe,
 	.remove = moxart_clk_remove,
 	.driver = {
 		.name			= "moxart-sysclk",
 		.owner			= THIS_MODULE,
-		.of_match_table	= moxart_clk_match,
+		.of_match_table	= moxart_pmu_match,
 	},
 };
 
@@ -170,8 +158,6 @@ static void __exit moxart_clk_exit(void)
 
 postcore_initcall(moxart_clk_init);
 module_exit(moxart_clk_exit)
-
-module_platform_driver(moxart_clk_driver);
 
 MODULE_ALIAS("platform:moxart-sysclk");
 MODULE_DESCRIPTION("MOXA ART clock driver");

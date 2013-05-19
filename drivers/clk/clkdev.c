@@ -36,8 +36,10 @@ struct clk *of_clk_get(struct device_node *np, int index)
 
 	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
 					&clkspec);
-	if (rc)
+	if (rc) {
+		pr_info("%s: of_parse_phandle_with_args failed\n", __func__);
 		return ERR_PTR(rc);
+	}
 
 	clk = of_clk_get_from_provider(&clkspec);
 	of_node_put(clkspec.np);

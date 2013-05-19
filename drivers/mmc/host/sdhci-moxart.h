@@ -126,7 +126,7 @@ struct moxart_host {
 
 	unsigned int			wait_for;
 	unsigned int			timeout;
-	unsigned int			sysclk;
+	long					sysclk;
 	bool					removed;
 };
 

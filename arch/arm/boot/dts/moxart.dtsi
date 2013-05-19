@@ -50,7 +50,8 @@
 		gpio: gpio@98700000 {
 			compatible = "moxa,moxart-gpio";
 			reg =	<0x98700000 0x1000>,
-					<0x98100100 0x4>;			/* Power Management Unit */
+					<0x98100100 0x4>;			/*	Power Management Unit
+													enable/disable pin 0-31 (32bit register) */
 		};
 
 		rtc: rtc {
@@ -70,25 +71,23 @@
 
 		pmu: pmu@98100000 {						/* Power Management Unit */
 			compatible = "moxa,moxart-pmu";
-			reg = <0x98100000 0x34>;
-			clock-names = "sys_clk", "apb_clk";
-			clock-output-names = "sys_clk";
- 
+			reg = <0x98100000 0x34>;			/* offset mul @ 0x30, val @ 0x0c (2 * 32 bit registers) */
 			clocks {
-				sysclk: sysclk {
+				sys_clk: sys_clk {
 					#clock-cells = <0>;
 					compatible = "moxa,moxart-sysclk";
 					clock-output-names = "sys_clk";
 				};
-
-				apb: apb {
-					#clock-cells = <0>;
-					compatible = "fixed-clock";
-					clock-frequency = <48000000>;
-					clock-output-names = "apb_clk";
-				};
 			};
-/*			clocks = <&sysclk>, <&clock apb>;*/
+		};
+
+		clocks {
+			apb_clk: apb_clk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <48000000>;
+				clock-output-names = "apb_clk";
+			};
 		};
 	};
 };

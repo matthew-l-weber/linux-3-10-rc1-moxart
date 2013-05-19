@@ -499,21 +499,15 @@ static void moxart_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct moxart_host *host = mmc_priv(mmc);
 	unsigned long flags;
 	unsigned short power;
+	int div;
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (ios->clock) {
-		int div;
-#ifdef MSD_SUPPORT_GET_CLOCK
 		div = (host->sysclk / (host->mmc->f_max * 2)) - 1;
-#else
-		div = (APB_CLK / (host->mmc->f_max * 2)) - 1;
-#endif
-
 		if (div > MSD_CLK_DIV_MASK)
 			div = MSD_CLK_DIV_MASK;
 		else if (div < 0)
 			div = 0;
-
 		div |= MSD_CLK_SD;
 		writel(div, &host->reg->clock_control);
 	} else if (!(readl(&host->reg->clock_control) & MSD_CLK_DIS)) {
@@ -548,41 +542,6 @@ static void moxart_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void moxart_get_sysclk(struct moxart_host *host, void __iomem *reg_pmu)
-{
-	unsigned int mul, val, div;
-	mul = (readl(reg_pmu + 0x30) >> 3) & 0x1ff;
-	val = (readl(reg_pmu + 0x0c) >> 4) & 0x7;
-	switch (val) {
-	case 0:
-		div = 2;
-		break;
-	case 1:
-		div = 3;
-		break;
-	case 2:
-		div = 4;
-		break;
-	case 3:
-		div = 6;
-		break;
-	case 4:
-		div = 8;
-		break;
-	default:
-		div = 2;
-		break;
-	}
-	host->sysclk = (38684 * mul + 10000) / (div * 10000);
-	host->sysclk = (host->sysclk * 1000000) / 2;
-	dev_dbg(mmc_dev(host->mmc),
-		"%s: host->sysclk=%d mul=%d div=%d val=%d\n",
-		__func__, host->sysclk, mul, div, val);
-	dev_info(mmc_dev(host->mmc),
-		"%s: host->sysclk=%d mul=%d div=%d val=%d\n",
-		__func__, host->sysclk, mul, div, val);
-	/* host->sysclk=77500000 mul=80 div=2 val=0 */
-}
 
 static int moxart_get_ro(struct mmc_host *mmc)
 {
@@ -603,11 +562,10 @@ static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource res_pmu, res_mmc;
+	struct resource res_mmc;
 	struct mmc_host *mmc;
 	struct moxart_host *host = NULL;
 	void __iomem *reg_mmc;
-	void __iomem *reg_pmu;
 	dma_cap_mask_t mask;
 	int ret;
 	struct dma_slave_config cfg;
@@ -627,11 +585,6 @@ static int moxart_probe(struct platform_device *pdev)
 		dev_err(dev, "%s: could not get MMC base resource\n", __func__);
 		goto out;
 	}
-	ret = of_address_to_resource(node, 1, &res_pmu);
-	if (ret) {
-		dev_err(dev, "%s: could not get PMU base resource\n", __func__);
-		goto out;
-	}
 
 	irq = irq_of_parse_and_map(node, 0);
 
@@ -640,15 +593,6 @@ static int moxart_probe(struct platform_device *pdev)
 		dev_err(dev, "%s: devm_ioremap_resource res_mmc failed\n",
 			__func__);
 		return PTR_ERR(reg_mmc);
-	}
-	/*	use ioremap here instead of devm_ioremap_resource
-		gpio will request the memory region first (postcore_initcall)
-		and doing it here again would fail */
-	reg_pmu = ioremap(res_pmu.start, resource_size(&res_pmu));
-	if (IS_ERR(reg_pmu)) {
-		dev_err(dev, "%s: devm_ioremap_resource res_pmu failed\n",
-			__func__);
-		return PTR_ERR(reg_pmu);
 	}
 
 	mmc->ops = &moxart_ops;
@@ -673,17 +617,18 @@ static int moxart_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
+#ifdef MSD_SUPPORT_GET_CLOCK
 	host->clk = devm_clk_get(dev, "sys_clk");
+#else
+	host->clk = devm_clk_get(dev, "apb_clk");
+#endif
 	if (IS_ERR(host->clk)) {
-		dev_warn(dev, "can not get sysclk\n");
+		dev_err(dev, "could not get clock\n");
+		host->sysclk = APB_CLK;
 	}
 	else {
-		dev_info(dev, "sysclk=%lu\n", clk_round_rate(host->clk, 0));
+		host->sysclk = clk_round_rate(host->clk, 0);
 	}
-	
-#ifdef MSD_SUPPORT_GET_CLOCK
-	moxart_get_sysclk(host, reg_pmu);
-#endif
 
 	spin_lock_init(&host->lock);
 
@@ -746,8 +691,8 @@ static int moxart_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, mmc);
 	mmc_add_host(mmc);
 
-	dev_info(mmc_dev(host->mmc), "finished %s IRQ=%d\n",
-		__func__, irq);
+	dev_info(mmc_dev(host->mmc), "finished %s IRQ=%d clk=%lu\n",
+		__func__, irq, host->sysclk);
 	return 0;
 
 out:
