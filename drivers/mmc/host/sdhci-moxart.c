@@ -620,8 +620,7 @@ static int moxart_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk)) {
 		dev_err(dev, "could not get clock\n");
 		host->sysclk = APB_CLK;
-	}
-	else {
+	} else {
 		host->sysclk = clk_round_rate(host->clk, 0);
 	}
 

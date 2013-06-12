@@ -82,8 +82,8 @@ static void wdt_enable(void)
 static void wdt_restart(char str, const char *cmd)
 {
 	writel(1, reg_wdt + 4);
-    writel(0x5ab9, reg_wdt + 8);
-    writel(0x03, reg_wdt + 12);
+	writel(0x5ab9, reg_wdt + 8);
+	writel(0x03, reg_wdt + 12);
 }
 
 static void wdt_disable(void)

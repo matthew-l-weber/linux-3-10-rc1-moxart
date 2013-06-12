@@ -144,9 +144,9 @@ static int moxart_gpio_probe(struct platform_device *pdev)
 	moxart_gpio_direction_output(&moxart_gpio_chip, SW_READY_GPIO, 0);
 	moxart_gpio_direction_input(&moxart_gpio_chip, SW_RESET_GPIO);
 	moxart_gpio_set(&moxart_gpio_chip, SW_READY_GPIO, 0);
-	
+
 	/* change I/O multiplexing to SD (not needed) */
-	/* moxart_gpio_disable(0xff << 10);*/ 
+	/* moxart_gpio_disable(0xff << 10); */
 
 	/*	readyled is lit on SW_READY_GPIO=0, use SW_READY_GPIO=1 to
 		shut it off after boot (bootloader switches it on) */

@@ -95,7 +95,7 @@ static struct irqaction moxart_timer_irq = {
 static void __init moxart_timer_init(struct device_node *node)
 {
 	int ret, irq;
-	
+
 	timer_base = of_iomap(node, 0);
 	if (!timer_base)
 		panic("%s: failed to map base\n", node->full_name);
@@ -119,6 +119,5 @@ static void __init moxart_timer_init(struct device_node *node)
 	pr_info("%s: count/load (APB_CLK=%d/HZ=%d) IRQ=%d\n",
 		node->full_name, APB_CLK, HZ, irq);
 }
-CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer",
-    moxart_timer_init);
+CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", moxart_timer_init);
 

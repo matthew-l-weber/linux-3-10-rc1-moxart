@@ -167,7 +167,8 @@ static int __init moxart_of_init(struct device_node *node,
 
 	return 0;
 }
-IRQCHIP_DECLARE(moxa_moxart_ic, "moxa,moxart-interrupt-controller", moxart_of_init);
+IRQCHIP_DECLARE(moxa_moxart_ic, "moxa,moxart-interrupt-controller",
+	moxart_of_init);
 
 asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs)
 {

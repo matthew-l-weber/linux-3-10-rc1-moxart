@@ -22,7 +22,8 @@ struct clk_device {
 	spinlock_t		*lock;
 };
 
-static long moxart_round_rate(struct clk_hw *c_hw, unsigned long parent_rate, unsigned long *p)
+static long moxart_round_rate(struct clk_hw *c_hw,
+	unsigned long parent_rate, unsigned long *p)
 {
 	unsigned int mul, val, div, ret;
 	struct clk_device *dev_clk = container_of(c_hw, struct clk_device, hw);
@@ -45,8 +46,8 @@ static long moxart_round_rate(struct clk_hw *c_hw, unsigned long parent_rate, un
 	case 4:
 		div = 8;
 		break;
-	default:                                                                                                                                   
-		div = 2;                                                                                                                               
+	default:
+		div = 2;
 		break;
 	}
 	ret = (38684 * mul + 10000) / (div * 10000);
@@ -54,7 +55,7 @@ static long moxart_round_rate(struct clk_hw *c_hw, unsigned long parent_rate, un
 	pr_debug("%s: ret=%d mul=%d div=%d val=%d\n",
 		__func__, ret, mul, div, val);
 	/* usually host->sysclk=77500000 mul=80 div=2 val=0 */
-	return ret;	
+	return ret;
 }
 
 static const struct clk_ops moxart_clk_ops = {
@@ -67,8 +68,8 @@ static const struct of_device_id moxart_pmu_match[] = {
 };
 
 static const struct of_device_id moxart_sysclk_match[] = {
-    { .compatible = "moxa,moxart-sysclk" },
-    { }
+	{ .compatible = "moxa,moxart-sysclk" },
+	{ }
 };
 
 static int moxart_clk_probe(struct platform_device *pdev)
@@ -82,7 +83,7 @@ static int moxart_clk_probe(struct platform_device *pdev)
 	struct clk_init_data init;
 	struct resource res_pmu;
 	int err;
-	
+
 	dev_clk = devm_kzalloc(&pdev->dev, sizeof(*dev_clk), GFP_KERNEL);
 	if (WARN_ON(!dev_clk))
 		return -ENOMEM;
@@ -94,7 +95,7 @@ static int moxart_clk_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get PMU base resource\n");
 		return err;
 	}
-   
+
 	dev_clk->reg_pmu = devm_ioremap_resource(&pdev->dev, &res_pmu);
 	if (IS_ERR(dev_clk->reg_pmu)) {
 		dev_err(&pdev->dev, "devm_ioremap_resource res_pmu failed\n");
@@ -108,12 +109,12 @@ static int moxart_clk_probe(struct platform_device *pdev)
 	clk_name = clk_node->name;
 	of_property_read_string(clk_node, "clock-output-names",
 		&clk_name);
-	
+
 	init.name = clk_name;
 	init.ops = &moxart_clk_ops;
 	init.flags = 0;
 	init.num_parents = 0;
-	
+
 	dev_clk->hw.init = &init;
 
 	clk = devm_clk_register(&pdev->dev, &dev_clk->hw);
@@ -121,13 +122,15 @@ static int moxart_clk_probe(struct platform_device *pdev)
 		kfree(dev_clk);
 		return PTR_ERR(clk);
 	}
-   
+
 	err = of_clk_add_provider(clk_node, of_clk_src_simple_get, clk);
 
-	/*	calling of_clk_init here means it can be removed from init_machine which
-		can then itself be removed entirely.
-		this needs to happen or fixed-clock "apb_clk" will not get registered */
-	/*	of_clk_init(NULL); unfortunately this means __init section mismatch */
+	/*	calling of_clk_init here means it can be removed from
+		init_machine which can then itself be removed entirely.
+		this needs to happen or fixed-clock "apb_clk" will not
+		get registered */
+	/*	of_clk_init(NULL); unfortunately this means __init
+		section mismatch */
 
 	dev_info(&pdev->dev, "finished %s\n", __func__);
 
@@ -137,7 +140,7 @@ static int moxart_clk_probe(struct platform_device *pdev)
 static int moxart_clk_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-   
+
 	return 0;
 }
 
