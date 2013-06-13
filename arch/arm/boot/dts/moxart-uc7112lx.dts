@@ -13,6 +13,8 @@
 	compatible = "moxa,moxart-uc-7112-lx", "moxa,moxart";
 
 	memory {
+		/* SAMSUNG K4S561632J-UC75 */
+		device_type = "memory";
 		reg = <0x00000000 0x02000000>;
 	};
 
@@ -43,46 +45,6 @@
 		};
 	};
 
-	mmc@98e00000 {
-		compatible = "moxa,moxart-mmc";
-		reg =	<0x98e00000 0x00001000>;
-		interrupts = <5 0>;
-		clock-names = "sys_clk";
-		clocks = <&sys_clk>;
-	};
-
-	mxser@98200040 {
-		compatible = "moxa,moxart-mxser";
-
-				/* UART "3" base */
-		reg =	<0x98200040 0x00000080>,
-				
-				/* UART mode base */ 
-				<0x982000e4 0x00000080>,
-				
-				/* UART interrupt vector */
-				<0x982000c0 0x00000020>;
-		interrupts = <31 1>;
-	};
-
-	mac0: mac@90900000 {
-		compatible = "moxa,moxart-mac";
-		reg =   <0x90900000 0x1000>,
-
-				/* MAC address stored on flash */
-				<0x80000050 0x6>;
-		interrupts = <25 0>;
-	};
-
-	mac1: mac@92000000 {
-		compatible = "moxa,moxart-mac";
-		reg =   <0x92000000 0x1000>,
-
-				/* MAC address stored on flash */
-				<0x80000056 0x6>;
-		interrupts = <27 0>;
-	};
-
 	uart0: uart@98200000 {
 		compatible = "ns16550a";
 		reg = <0x98200000 0x20>;
@@ -94,6 +56,6 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";
+		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rootfstype=jffs2 rw";
 	};
 };

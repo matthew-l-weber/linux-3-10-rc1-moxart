@@ -104,7 +104,7 @@ static int moxart_clk_probe(struct platform_device *pdev)
 
 	clk_node = of_find_matching_node(NULL, moxart_sysclk_match);
 	if (!clk_node)
-		pr_err("%s: can't find DT node\n", clk_node->full_name);
+		pr_err("%s: can't find DT node\n", __func__);
 
 	clk_name = clk_node->name;
 	of_property_read_string(clk_node, "clock-output-names",

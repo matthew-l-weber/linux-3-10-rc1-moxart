@@ -2562,7 +2562,7 @@ static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
 
 	node = of_find_matching_node(NULL, moxart_mxser_match);
 	if (!node) {
-		pr_err("%s: can't find DT node\n", node->full_name);
+		pr_err("%s: can't find DT node\n", __func__);
 		return -EIO;
 	}
 

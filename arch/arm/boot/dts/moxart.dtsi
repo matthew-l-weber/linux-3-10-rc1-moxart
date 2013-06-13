@@ -13,8 +13,13 @@
 	interrupt-parent = <&intc>;
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		cpu@0 {
+			device_type = "cpu";
 			compatible = "faraday,fa526";
+			reg = <0>;
 		};
 	};
 
@@ -50,47 +55,6 @@
 			compatible = "moxa,moxart-timer";
 			reg = <0x98400000 0x10>;
 			interrupts = <19 1>;
-		};
-
-		gpio: gpio@98700000 {
-			compatible = "moxa,moxart-gpio";
-			reg =	<0x98700000 0x1000>,
-
-			/* Power Management Unit
-			 * enable/disable pin 0-31 (32bit register)
-			 */
-					<0x98100100 0x4>;
-		};
-
-		rtc: rtc {
-			compatible = "moxa,moxart-rtc";
-		};
-
-		dma: dma@90500000 {
-			compatible = "moxa,moxart-dma";
-			reg = <0x90500000 0x1000>;
-			interrupts = <24 0>;
-		};
-
-		watchdog: watchdog@98500000 {
-			compatible = "moxa,moxart-watchdog";
-			reg = <0x98500000 0x1000>;
-		};
-
-		/* Power Management Unit */
-		pmu: pmu@98100000 {
-			compatible = "moxa,moxart-pmu";
-
-			/* offset mul @ 0x30, val @ 0x0c (2 * 32 bit registers) */
-			reg = <0x98100000 0x34>;
-			
-			clocks {
-				sys_clk: sys_clk {
-					#clock-cells = <0>;
-					compatible = "moxa,moxart-sysclk";
-					clock-output-names = "sys_clk";
-				};
-			};
 		};
 	};
 };
