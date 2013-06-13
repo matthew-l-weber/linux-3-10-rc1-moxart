@@ -592,6 +592,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	/*  use ioremap here instead of devm_ioremap_resource
 		physmap_of will request the memory region first
 		and doing it here again would fail
+
 		if flash partition 0 (bootloader) was omitted from DT
 		then this driver could request the region exclusively
 	*/
@@ -688,8 +689,7 @@ static int moxart_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id moxart_mac_match[] = {
-	{ .compatible = "moxa,moxart-mac0" },
-	{ .compatible = "moxa,moxart-mac1" },
+	{ .compatible = "moxa,moxart-mac" },
 	{ }
 };
 

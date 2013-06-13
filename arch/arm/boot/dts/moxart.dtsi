@@ -2,11 +2,14 @@
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
  *
- * Licensed under GPLv2 or later. */
+ * Licensed under GPLv2 or later.
+ */
 
 /include/ "skeleton.dtsi"
 
 / {
+	compatible = "moxa,moxart";
+	model = "MOXART";
 	interrupt-parent = <&intc>;
 
 	cpus {
@@ -38,7 +41,9 @@
 			reg = <0x98800000 0x38>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			interrupt-mask = <0x00080000>;		/* single register vector, interrupts 0-31, 1s signify edge */
+
+			/* single register vector, interrupts 0-31, 1s signify edge */
+			interrupt-mask = <0x00080000>;
 		};
 
 		timer: timer@98400000 {
@@ -50,8 +55,11 @@
 		gpio: gpio@98700000 {
 			compatible = "moxa,moxart-gpio";
 			reg =	<0x98700000 0x1000>,
-					<0x98100100 0x4>;			/*	Power Management Unit
-													enable/disable pin 0-31 (32bit register) */
+
+			/* Power Management Unit
+			 * enable/disable pin 0-31 (32bit register)
+			 */
+					<0x98100100 0x4>;
 		};
 
 		rtc: rtc {
@@ -69,9 +77,13 @@
 			reg = <0x98500000 0x1000>;
 		};
 
-		pmu: pmu@98100000 {						/* Power Management Unit */
+		/* Power Management Unit */
+		pmu: pmu@98100000 {
 			compatible = "moxa,moxart-pmu";
-			reg = <0x98100000 0x34>;			/* offset mul @ 0x30, val @ 0x0c (2 * 32 bit registers) */
+
+			/* offset mul @ 0x30, val @ 0x0c (2 * 32 bit registers) */
+			reg = <0x98100000 0x34>;
+			
 			clocks {
 				sys_clk: sys_clk {
 					#clock-cells = <0>;

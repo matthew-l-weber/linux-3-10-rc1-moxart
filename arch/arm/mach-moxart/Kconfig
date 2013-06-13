@@ -1,5 +1,5 @@
 config ARCH_MOXART
-	bool "MOXA ART SoC" if (ARCH_MULTI_V4)
+	bool "MOXA ART SoC" if ARCH_MULTI_V4
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
 	select USE_OF
@@ -9,20 +9,20 @@ config ARCH_MOXART
 	select GENERIC_IRQ_CHIP
 	select ARCH_REQUIRE_GPIOLIB
 	help
-	  Say Y here if you want to run your kernel on hardware with a MOXA ART SoC.
-	  This is a Faraday FA526 ARMv4 32-bit 192 MHz processor with MMU and 16KB/8KB D/I-cache (UC-7112-LX)
-	  This perticular SoC is used on models UC-7101, UC-7112/UC-7110, IA240/IA241, IA3341.
+	  Say Y here if you want to run your kernel on hardware with a
+	  MOXA ART SoC. This is a Faraday FA526 ARMv4 32-bit 192 MHz
+	  processor with MMU and 16KB/8KB D/I-cache (UC-7112-LX)
+	  This perticular SoC is used on models UC-7101,
+	  UC-7112/UC-7110, IA240/IA241, IA3341.
 
 if ARCH_MOXART
-
-menu "MOXA ART SoC Implementation"
 
 config MACH_UC7112LX
 	bool "MOXA UC-7112-LX"
 	depends on ARCH_MOXART
+	default y
 	help
-	  Say Y here if you intend to run this kernel on a MOXA UC-7112-LX embedded computer.
-
-endmenu
+	  Say Y here if you intend to run this kernel on a MOXA
+	  UC-7112-LX embedded computer.
 
 endif

@@ -2,21 +2,24 @@
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
  *
- * Licensed under GPLv2 or later. */
+ * Licensed under GPLv2 or later. 
+ */
 
 /dts-v1/;
 /include/ "moxart.dtsi"
 
 / {
 	model = "MOXA UC-7112-LX";
-	compatible = "moxa,moxart-uc-7112-lx";
+	compatible = "moxa,moxart-uc-7112-lx", "moxa,moxart";
 
 	memory {
 		reg = <0x00000000 0x02000000>;
 	};
 
 	flash@80000000,0 {
-		/* JS28F128 J3D75 A9087684 - Numonyx Embedded Flash Memory (J3 v. D) */
+		/* JS28F128 J3D75 A9087684 - 
+		 * Numonyx Embedded Flash Memory (J3 v. D) 
+		 */
 		compatible = "numonyx,js28f128", "cfi-flash";
 		reg = <0x80000000 0x01000000>;
 		bank-width = <2>;
@@ -50,23 +53,33 @@
 
 	mxser@98200040 {
 		compatible = "moxa,moxart-mxser";
-		reg =	<0x98200040 0x00000080>,	/* UART "3" base */
-				<0x982000e4 0x00000080>,	/* UART mode base */
-				<0x982000c0 0x00000020>;	/* UART interrupt vector */
+
+				/* UART "3" base */
+		reg =	<0x98200040 0x00000080>,
+				
+				/* UART mode base */ 
+				<0x982000e4 0x00000080>,
+				
+				/* UART interrupt vector */
+				<0x982000c0 0x00000020>;
 		interrupts = <31 1>;
 	};
 
 	mac0: mac@90900000 {
-		compatible = "moxa,moxart-mac0";
+		compatible = "moxa,moxart-mac";
 		reg =   <0x90900000 0x1000>,
-				<0x80000050 0x5>;			/* MAC address stored on flash */
+
+				/* MAC address stored on flash */
+				<0x80000050 0x6>;
 		interrupts = <25 0>;
 	};
 
 	mac1: mac@92000000 {
-		compatible = "moxa,moxart-mac1";
+		compatible = "moxa,moxart-mac";
 		reg =   <0x92000000 0x1000>,
-				<0x80000056 0x5>;			/* MAC address stored on flash */
+
+				/* MAC address stored on flash */
+				<0x80000056 0x6>;
 		interrupts = <27 0>;
 	};
 
@@ -81,9 +94,6 @@
 	};
 
 	chosen {
-		/* uncomment to use on board flash root
-		bootargs = "console=ttyS0,115200n8 root=/dev/mtdblock2 rootfstype=jffs2 rw";
-		*/
 		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1 rw rootwait";
 	};
 };

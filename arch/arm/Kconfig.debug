@@ -428,8 +428,6 @@ choice
         help
           Say Y here if you want kernel low-level debugging support
           on MOXART based platforms on the UART0.
-          select this to make sure "putc" in arch/arm/boot/compressed/debug.S
-          uses arch/arm/include/debug/moxart.S:s "addruart" macro
 
 	config DEBUG_TEGRA_UART
 		depends on ARCH_TEGRA

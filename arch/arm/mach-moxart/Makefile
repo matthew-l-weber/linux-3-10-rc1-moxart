@@ -1,7 +1,3 @@
-#
-# Makefile for the linux kernel.
-#
-
 # Object file lists.
 
 obj-y          := idle.o
