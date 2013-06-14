@@ -1,0 +1,17 @@
+MOXA ART timer
+-----------------------------------------------------
+This timer is used on MOXA ART SoCs:
+
+Required properties:
+- compatible : "moxa,moxart-timer"
+- reg : Register range for the timer
+- interrupts : interrupt for the timer
+
+Example:
+
+	timer: timer@98400000 {
+		compatible = "moxa,moxart-timer";
+		reg = <0x98400000 0x10>;
+		interrupts = <19 1>;
+	};
+
