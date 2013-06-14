@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
  *
- * Licensed under GPLv2 or later. 
+ * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;
@@ -19,8 +19,8 @@
 	};
 
 	flash@80000000,0 {
-		/* JS28F128 J3D75 A9087684 - 
-		 * Numonyx Embedded Flash Memory (J3 v. D) 
+		/* JS28F128 J3D75 A9087684
+		 * Numonyx Embedded Flash Memory (J3 v. D)
 		 */
 		compatible = "numonyx,js28f128", "cfi-flash";
 		reg = <0x80000000 0x01000000>;

@@ -31,8 +31,8 @@ static void moxart_idle(void)
 }
 
 static const struct of_device_id moxart_match[] = {
-       { .compatible = "moxa,moxart" },
-       { }
+	   { .compatible = "moxa,moxart" },
+	   { }
 };
 
 static int __init moxart_idle_init(void)

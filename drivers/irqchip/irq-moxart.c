@@ -106,7 +106,7 @@ static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 
 	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
 	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
-	
+
 	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;

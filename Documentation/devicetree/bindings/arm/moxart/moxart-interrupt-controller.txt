@@ -14,7 +14,7 @@ Main node required properties:
   The first cell contains the interrupt number in the range [0-31].
   The second cell contains the interrupt type
 - reg: physical base address and size of the intc registers map.
-- interrupt-mask: Specifies if the interrupt is edge or level-triggered 
+- interrupt-mask: Specifies if the interrupt is edge or level-triggered
   each bit represent an interrupt 0-31 where 1 signify edge
 
 Example:
