@@ -48,7 +48,7 @@
 	uart0: uart@98200000 {
 		compatible = "ns16550a";
 		reg = <0x98200000 0x20>;
-		interrupts = <31 0>;
+		interrupts = <31 8>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		clock-frequency = <14745600>;

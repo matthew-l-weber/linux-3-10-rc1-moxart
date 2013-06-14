@@ -693,8 +693,10 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
-	    type != (irqd_get_trigger_type(irq_get_irq_data(virq))))
+	    type != (irqd_get_trigger_type(irq_get_irq_data(virq)))) {
+		pr_info("%s: irq_set_irq_type(%d, %d)\n", __func__, virq, type);
 		irq_set_irq_type(virq, type);
+	}
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
@@ -890,6 +892,7 @@ int irq_domain_xlate_twocell(struct irq_domain *d, struct device_node *ctrlr,
 		return -EINVAL;
 	*out_hwirq = intspec[0];
 	*out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
+	pr_info("%s: out_type=%x\n", __func__, *out_type);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_domain_xlate_twocell);
