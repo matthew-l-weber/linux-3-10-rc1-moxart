@@ -15,13 +15,6 @@
 
 #include "irqchip.h"
 
-/*
-#define LEVEL               0
-#define EDGE                1
-#define H_ACTIVE            0
-#define L_ACTIVE            1
-*/
-
 #define IRQ_SOURCE_REG      0
 #define IRQ_MASK_REG        0x04
 #define IRQ_CLEAR_REG       0x08
@@ -99,21 +92,11 @@ static inline u32 irq_get_trigger_type(unsigned int irq)
 static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 			 irq_hw_number_t hw)
 {
-/*	struct irq_desc *desc;
-    desc = irq_to_desc(virq);*/
-
-	set_irq_flags(virq, IRQF_VALID /*| IRQF_PROBE*/);
-
-	pr_info("%s: irq_get_trigger_type(%d) = %x", __func__, virq, irq_get_trigger_type(virq));
 	if ((1 << hw) && interrupt_mask) {
-/*	if (!irqd_is_level_type(irq_get_irq_data(virq))) {*/
-/*	if (!irqd_is_level_type(&desc->irq_data)) {*/
-/*	if (irq_get_trigger_type(virq)) {*/
 		irq_set_chip_and_handler(virq, &moxart_irq_chip,
 			handle_edge_irq);
 		pr_info("%s: irq_set_chip_and_handler edge virq=%d hw=%d\n",
 			__func__, virq, (unsigned int) hw);
-		interrupt_mask |= 1 << hw;
 	} else {
 		irq_set_chip_and_handler(virq, &moxart_irq_chip,
 			handle_level_irq);
@@ -121,30 +104,13 @@ static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 			__func__, virq, (unsigned int) hw);
 	}
 
-	/*
-	irq_set_chip_and_handler(virq, &moxart_irq_chip,
-		handle_percpu_devid_irq);
-	*/
-
 	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
 	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
+	
+	set_irq_flags(virq, IRQF_VALID);
 
 	return 0;
 }
-
-/*
-int moxart_xlate_twocell(struct irq_domain *d, struct device_node *ctrlr,
-            const u32 *intspec, unsigned int intsize,
-            irq_hw_number_t *out_hwirq, unsigned int *out_type)
-{  
-    if (WARN_ON(intsize < 2))
-        return -EINVAL;
-    *out_hwirq = intspec[0];
-    *out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
-    pr_info("%s: out_type=%x\n", __func__, *out_type);
-    return 0;
-}
-*/  
 
 static struct irq_domain_ops moxart_irq_ops = {
 	.map = moxart_irq_map,
@@ -154,8 +120,6 @@ static struct irq_domain_ops moxart_irq_ops = {
 static int __init moxart_of_init(struct device_node *node,
 				struct device_node *parent)
 {
-/*	unsigned int irq;*/
-
 	interrupt_mask = be32_to_cpup(of_get_property(node,
 		"interrupt-mask", NULL));
 	pr_info("%s: interrupt-mask=%x\n", node->full_name, interrupt_mask);
@@ -167,31 +131,8 @@ static int __init moxart_of_init(struct device_node *node,
 	moxart_irq_domain = irq_domain_add_linear(node,
 		32, &moxart_irq_ops, NULL);
 
-	/* debug, virtual irq the same as hwirq
-	moxart_irq_domain = irq_domain_add_legacy(node,
-		32, 0, 0, &moxart_irq_ops, NULL);*/
-
 	if (!moxart_irq_domain)
 		panic("%s: unable to create IRQ domain\n", node->full_name);
-
-	/* debug, print irq map
-	for (irq = 0; irq < 32; irq++) {
-		virq = irq_create_mapping(moxart_irq_domain, irq);
-		pr_info("%s: irq_create_mapping(moxart_irq_domain, %d) == %d\n",
-			node->full_name, irq, virq);
-	}
-	for (irq = 0; irq < NR_IRQS; irq++) {
-		pr_info("%s: irq_find_mapping(moxart_irq_domain, %d) == %d\n",
-			node->full_name, irq,
-			irq_find_mapping(moxart_irq_domain, irq));
-	}
-	*/
-
-	/*
-	for (irq = 0; irq < 32; irq++) {
-		interrupt_mask |= !irqd_is_level_type(irq_get_irq_data(irq)) << irq;
-    }
-	*/
 
 	writel(0, IRQ_MASK(moxart_irq_base));
 	writel(0xffffffff, IRQ_CLEAR(moxart_irq_base));
