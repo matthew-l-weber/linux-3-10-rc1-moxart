@@ -12,7 +12,7 @@ config ARCH_MOXART
 	  Say Y here if you want to run your kernel on hardware with a
 	  MOXA ART SoC.
 	  The MOXA ART SoC is based on a Faraday FA526 ARMv4 32-bit
-	  192 MHz CPU with MMU and 16KB/8KB D/I-cache (UC-7112-LX)
+	  192 MHz CPU with MMU and 16KB/8KB D/I-cache (UC-7112-LX).
 	  Used on models UC-7101, UC-7112/UC-7110, IA240/IA241, IA3341.
 
 if ARCH_MOXART

@@ -83,12 +83,6 @@ static struct irq_chip moxart_irq_chip = {
 	.irq_set_wake = NULL,
 };
 
-static inline u32 irq_get_trigger_type(unsigned int irq)
-{
-	struct irq_data *d = irq_get_irq_data(irq);
-	return d ? irqd_get_trigger_type(d) : 0;
-}
-
 static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 			 irq_hw_number_t hw)
 {
@@ -103,9 +97,6 @@ static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
 		pr_info("%s: irq_set_chip_and_handler level virq=%d hw=%d\n",
 			__func__, virq, (unsigned int) hw);
 	}
-
-	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
-	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
 
 	set_irq_flags(virq, IRQF_VALID);
 
@@ -122,7 +113,7 @@ static int __init moxart_of_init(struct device_node *node,
 {
 	interrupt_mask = be32_to_cpup(of_get_property(node,
 		"interrupt-mask", NULL));
-	pr_info("%s: interrupt-mask=%x\n", node->full_name, interrupt_mask);
+	pr_debug("%s: interrupt-mask=%x\n", node->full_name, interrupt_mask);
 
 	moxart_irq_base = of_iomap(node, 0);
 	if (!moxart_irq_base)
@@ -137,6 +128,9 @@ static int __init moxart_of_init(struct device_node *node,
 	writel(0, IRQ_MASK(moxart_irq_base));
 	writel(0xffffffff, IRQ_CLEAR(moxart_irq_base));
 
+	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
+	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
+	
 	set_handle_irq(moxart_handle_irq);
 
 	pr_info("%s: %s finished\n", node->full_name, __func__);
