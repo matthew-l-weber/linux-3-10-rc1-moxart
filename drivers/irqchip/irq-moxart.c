@@ -1,8 +1,17 @@
-/* Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License,
- * or (at your option) any later version. */
+/*
+ * MOXA ART SoCs IRQ chip driver.
+ *
+ * Copyright (C) 2013 Jonas Jensen
+ *
+ * Jonas Jensen <jonas.jensen@gmail.com>
+ *
+ * Based on code from
+ * Moxa Technology Co., Ltd. <www.moxa.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
 
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -130,7 +139,7 @@ static int __init moxart_of_init(struct device_node *node,
 
 	writel(interrupt_mask, IRQ_TMODE(moxart_irq_base));
 	writel(interrupt_mask, IRQ_TLEVEL(moxart_irq_base));
-	
+
 	set_handle_irq(moxart_handle_irq);
 
 	pr_info("%s: %s finished\n", node->full_name, __func__);
