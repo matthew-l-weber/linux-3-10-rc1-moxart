@@ -47,4 +47,6 @@ static int __init moxart_idle_init(void)
 	return 0;
 }
 
+/*
 arch_initcall(moxart_idle_init);
+*/
