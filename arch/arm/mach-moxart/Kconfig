@@ -20,7 +20,6 @@ if ARCH_MOXART
 config MACH_UC7112LX
 	bool "MOXA UC-7112-LX"
 	depends on ARCH_MOXART
-	default y
 	help
 	  Say Y here if you intend to run this kernel on a MOXA
 	  UC-7112-LX embedded computer.
