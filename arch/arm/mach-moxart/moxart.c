@@ -30,4 +30,5 @@ static const char * const moxart_dt_compat[] = {
 
 DT_MACHINE_START(MOXART, "MOXA UC-7112-LX")
 	.dt_compat		= moxart_dt_compat,
+	.nr_irqs		= 32,
 MACHINE_END

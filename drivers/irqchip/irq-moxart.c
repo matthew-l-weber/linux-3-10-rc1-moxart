@@ -52,7 +52,19 @@ static void __iomem *moxart_irq_base;
 static struct irq_domain *moxart_irq_domain;
 static unsigned int interrupt_mask;
 
-asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs);
+asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs)
+{
+	u32 irqstat;
+	int hwirq;
+
+	irqstat = readl(moxart_irq_base + IRQ_STATUS_REG);
+
+	while (irqstat) {
+		hwirq = ffs(irqstat) - 1;
+		handle_IRQ(irq_find_mapping(moxart_irq_domain, hwirq), regs);
+		irqstat &= ~(1 << hwirq);
+	}
+}
 
 void moxart_irq_ack(struct irq_data *irqd)
 {
@@ -90,9 +102,9 @@ static struct irq_chip moxart_irq_chip = {
 };
 
 static int moxart_irq_map(struct irq_domain *d, unsigned int virq,
-			 irq_hw_number_t hw)
+	 irq_hw_number_t hw)
 {
-	if ((1 << hw) && interrupt_mask) {
+	if ((1 << hw) & interrupt_mask) {
 		irq_set_chip_and_handler(virq, &moxart_irq_chip,
 			handle_edge_irq);
 		pr_info("%s: irq_set_chip_and_handler edge virq=%d hw=%d\n",
@@ -114,8 +126,29 @@ static struct irq_domain_ops moxart_irq_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
+
+static __init void moxart_alloc_gc(void __iomem *base,
+	unsigned int irq_start, unsigned int num)
+{   
+    struct irq_chip_generic *gc;
+    struct irq_chip_type *ct;
+
+    gc = irq_alloc_generic_chip("MOXARTINTC", 1, irq_start, base, handle_edge_irq);
+
+    ct = gc->chip_types;
+
+	ct->chip.irq_ack = irq_gc_ack_set_bit;
+    ct->chip.irq_mask = irq_gc_mask_clr_bit;
+    ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_wake = NULL;
+	ct->regs.ack = 0x08;
+    ct->regs.mask = 0x04;
+
+    irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST, 0);
+}
+
 static int __init moxart_of_init(struct device_node *node,
-				struct device_node *parent)
+	struct device_node *parent)
 {
 	interrupt_mask = be32_to_cpup(of_get_property(node,
 		"interrupt-mask", NULL));
@@ -123,13 +156,31 @@ static int __init moxart_of_init(struct device_node *node,
 
 	moxart_irq_base = of_iomap(node, 0);
 	if (!moxart_irq_base)
-		panic("%s: unable to map IC registers\n", node->full_name);
+		panic("%s: unable to map INTC CPU registers\n", node->full_name);
+
+	/* a few tests using the old implementation, only because 
+	   nothing is printed to UART when this is broken,
+	   use to get virtual to hardware IRQ mapping examples: 
 
 	moxart_irq_domain = irq_domain_add_linear(node,
 		32, &moxart_irq_ops, NULL);
+	
+	moxart_irq_domain = irq_domain_add_legacy(node, 32, 0, 0,
+		&moxart_irq_ops, moxart_irq_base);
+	*/
 
-	if (!moxart_irq_domain)
-		panic("%s: unable to create IRQ domain\n", node->full_name);
+	/* generic chip broken for virtual/hardware IRQs not mapped 1:1 
+	   for this to work it is necessary to add .nr_irqs to the
+	   machine descriptor and use irq_domain_add_legacy:
+
+	moxart_irq_domain = irq_domain_add_linear(node,
+		32, &irq_domain_simple_ops, NULL);
+	*/
+
+	moxart_irq_domain = irq_domain_add_legacy(node, 32, 0, 0,
+		&irq_domain_simple_ops, moxart_irq_base);
+
+	moxart_alloc_gc(moxart_irq_base, 0, 32);
 
 	writel(0, IRQ_MASK(moxart_irq_base));
 	writel(0xffffffff, IRQ_CLEAR(moxart_irq_base));
@@ -145,19 +196,3 @@ static int __init moxart_of_init(struct device_node *node,
 }
 IRQCHIP_DECLARE(moxa_moxart_ic, "moxa,moxart-interrupt-controller",
 	moxart_of_init);
-
-asmlinkage void __exception_irq_entry moxart_handle_irq(struct pt_regs *regs)
-{
-	u32 irqstat;
-	int hwirq;
-
-	irqstat = readl(moxart_irq_base + IRQ_STATUS_REG);
-
-	while (irqstat) {
-		hwirq = ffs(irqstat) - 1;
-		handle_IRQ(irq_find_mapping(moxart_irq_domain, hwirq), regs);
-		irqstat &= ~(1 << hwirq);
-	}
-}
-
-
