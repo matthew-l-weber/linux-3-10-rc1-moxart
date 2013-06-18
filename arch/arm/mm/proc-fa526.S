@@ -81,7 +81,8 @@ ENDPROC(cpu_fa526_reset)
  */
 	.align	4
 ENTRY(cpu_fa526_do_idle)
-	nop
+	mov	pc, lr
+
 
 ENTRY(cpu_fa526_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
