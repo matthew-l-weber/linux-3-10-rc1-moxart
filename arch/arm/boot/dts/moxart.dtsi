@@ -55,6 +55,35 @@
 			compatible = "moxa,moxart-timer";
 			reg = <0x98400000 0x10>;
 			interrupts = <19 1>;
+			clock-frequency = <48000000>;
 		};
+
+		/* Power Management Unit */
+		pmu: pmu@98100000 {
+			compatible = "moxa,moxart-pmu";
+
+			/* offset mul @ 0x30, val @ 0x0c (2 * 32 bit registers) */
+			reg = <0x98100000 0x34>;
+
+			clocks {
+				sys_clk: sys_clk {
+					#clock-cells = <0>;
+					compatible = "moxa,moxart-sysclk";
+					clock-output-names = "sys_clk";
+				};
+			};
+		};
+
+/*
+		clocks {
+			apb_clk: apb_clk {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <48000000>;
+				clock-output-names = "apb_clk";
+			};
+		};
+*/
+
 	};
 };

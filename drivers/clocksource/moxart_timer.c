@@ -19,10 +19,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/clocksource.h>
+#include <linux/clk.h>
 
 #include <asm/mach/time.h>
-
-#define APB_CLK 48000000
 
 #define TIMER_1_COUNT(base_addr)        (base_addr + 0x00)
 #define TIMER_1_LOAD(base_addr)         (base_addr + 0x04)
@@ -101,6 +100,8 @@ static struct irqaction moxart_timer_irq = {
 static void __init moxart_timer_init(struct device_node *node)
 {
 	int ret, irq;
+	struct clk *clk;
+	unsigned int clock_frequency;
 
 	timer_base = of_iomap(node, 0);
 	if (!timer_base)
@@ -115,15 +116,25 @@ static void __init moxart_timer_init(struct device_node *node)
 		pr_warn("%s: failed to setup IRQ %d\n", node->full_name, irq);
 
 
-	writel(APB_CLK / HZ, TIMER_1_COUNT(timer_base));
-	writel(APB_CLK / HZ, TIMER_1_LOAD(timer_base));
+	clock_frequency = be32_to_cpup(of_get_property(node,
+		"clock-frequency", NULL));
+
+	clk = of_clk_get_by_name(node, "sys_clk");
+	if (IS_ERR(clk))
+		pr_err("%s: could not get clock\n", __func__);
+	else
+		pr_info("%s: got clock!\n", __func__);
+
+
+	writel(clock_frequency / HZ, TIMER_1_COUNT(timer_base));
+	writel(clock_frequency / HZ, TIMER_1_LOAD(timer_base));
 
 	writel(1, TIMER_1_CR_ENABLE(timer_base));
 	writel(0, TIMER_1_CR_EXTCLK(timer_base));
 	writel(1, TIMER_1_CR_FLOWIN(timer_base));
 
-	pr_info("%s: count/load (APB_CLK=%d/HZ=%d) IRQ=%d\n",
-		node->full_name, APB_CLK, HZ, irq);
+	pr_info("%s: count/load (clock_frequency=%d/HZ=%d) IRQ=%d\n",
+		node->full_name, clock_frequency, HZ, irq);
 }
 CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", moxart_timer_init);
 

@@ -129,22 +129,24 @@ static struct irq_domain_ops moxart_irq_ops = {
 
 static __init void moxart_alloc_gc(void __iomem *base,
 	unsigned int irq_start, unsigned int num)
-{   
-    struct irq_chip_generic *gc;
-    struct irq_chip_type *ct;
+{
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
 
-    gc = irq_alloc_generic_chip("MOXARTINTC", 1, irq_start, base, handle_edge_irq);
+	gc = irq_alloc_generic_chip("MOXARTINTC", 1, irq_start,
+		base, handle_edge_irq);
 
-    ct = gc->chip_types;
+	ct = gc->chip_types;
 
 	ct->chip.irq_ack = irq_gc_ack_set_bit;
-    ct->chip.irq_mask = irq_gc_mask_clr_bit;
-    ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
 	ct->chip.irq_set_wake = NULL;
 	ct->regs.ack = 0x08;
-    ct->regs.mask = 0x04;
+	ct->regs.mask = 0x04;
 
-    irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST, 0);
+	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
+		IRQ_NOREQUEST, 0);
 }
 
 static int __init moxart_of_init(struct device_node *node,
@@ -156,20 +158,21 @@ static int __init moxart_of_init(struct device_node *node,
 
 	moxart_irq_base = of_iomap(node, 0);
 	if (!moxart_irq_base)
-		panic("%s: unable to map INTC CPU registers\n", node->full_name);
+		panic("%s: unable to map INTC CPU registers\n",
+			node->full_name);
 
-	/* a few tests using the old implementation, only because 
+	/* a few tests using the old implementation, only because
 	   nothing is printed to UART when this is broken,
-	   use to get virtual to hardware IRQ mapping examples: 
+	   use to get virtual to hardware IRQ mapping examples:
 
 	moxart_irq_domain = irq_domain_add_linear(node,
 		32, &moxart_irq_ops, NULL);
-	
+
 	moxart_irq_domain = irq_domain_add_legacy(node, 32, 0, 0,
 		&moxart_irq_ops, moxart_irq_base);
 	*/
 
-	/* generic chip broken for virtual/hardware IRQs not mapped 1:1 
+	/* generic chip broken for virtual/hardware IRQs not mapped 1:1
 	   for this to work it is necessary to add .nr_irqs to the
 	   machine descriptor and use irq_domain_add_legacy:
 
